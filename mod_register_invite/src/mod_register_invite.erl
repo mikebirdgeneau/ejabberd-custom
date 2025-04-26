@@ -14,158 +14,128 @@
 -module(mod_register_invite).
 -behaviour(gen_mod).
 
-%% API ------------------------------------------------------------------
--export([start/2, stop/1, depends/2, mod_options/2, mod_doc/0]).
+%%----------------------------------------------------------------------
+%% API
+%%----------------------------------------------------------------------
+-export([start/2, stop/1, depends/2, mod_options/1, mod_doc/0]).
 
-%% hooks
+%% Hooks
 -export([check_token/3]).
 
-%% ad‑hoc & commands
--export([adhoc_invite/4, ejabberd_ctl_create/3]).
+%% Ad‑hoc command
+-export([adhoc_invite/4]).
 
--include_lib("ejabberd/include/ejabberd.hrl").
--include_lib("stdlib/include/ms_transform.hrl").
+-include("xmpp.hrl").  %% provides #xmlel{} etc.
 
-%-record defs -----------------------------------------------------------
 -record(invite_token, {
-          token        :: binary(),
-          host         :: binary(),
-          expiry       :: integer(),   %% erlang:system_time(sec)
-          uses_left    :: integer()    %% >0 means token is usable
+          token      :: binary(),
+          host       :: binary(),
+          expiry     :: integer(),   %% epoch seconds
+          uses_left  :: integer()
          }).
 
-%%%======================================================================
-%%% Module lifecycle
-%%%======================================================================
-start(Host, Opts) ->
-    ok = ensure_table(),
-    %% Hook that fires *before* user is actually created (see mod_register)
+%%%===================================================================
+%%% Lifecycle
+%%%===================================================================
+start(Host, _Opts) ->
+    ensure_table(),
     ejabberd_hooks:add(pre_registration, Host, ?MODULE, check_token, 80),
-
-    %% Register an ad‑hoc command so any authenticated user can call it
-    ejabberd_commands:register_command({create_invite, Host},
-        {?MODULE, ejabberd_ctl_create},
-        [token_type, validity, max_uses], string,
-        "Create an invite token. token_type = url | qr | raw, "
-        "validity = seconds from now (e.g. 86400), max_uses = integer"),
-
-    %% Ad‑hoc (XEP‑0050) stanza command
     mod_adhoc:register(Host, ?MODULE, <<"Generate Invite">>, fun adhoc_invite/4),
     ok.
 
 stop(Host) ->
     ejabberd_hooks:delete(pre_registration, Host, ?MODULE, check_token, 80),
     mod_adhoc:unregister(Host, ?MODULE),
-    ejabberd_commands:unregister_command({create_invite, Host}),
     ok.
 
 depends(_Host, _Opts) -> [].
 
-mod_doc() ->
-    "Invite‑only registration with expiring, single‑ or multi‑use tokens.".
+mod_doc() -> "Invite‑only registration with expiring tokens".
 
+%% default values (override in ejabberd.yml)
 mod_options(_Host) ->
-    [{token_lifetime, 604800},     %% default 7 days
-     {default_uses,   1},         %% default one‑time use
+    [{token_lifetime, 86400},      %% 1 day
+     {default_uses,   1},
      {invite_base_url, "https://example.com/register"}].
 
-%%%======================================================================
-%%% Registration hook
-%%%======================================================================
-%% @spec check_token(User :: binary(), From :: binary(), Packet :: exml:element()) -> any()
-%% The hook is executed by mod_register BEFORE actually creating the user.
-%% We look for <token/> inside the IQ stanza or allow sending the token in
-%% the password field (<password/> value = "token:TOKENSTRING") which is
-%% useful for clients that do not understand extensions.
+%%%===================================================================
+%%% Registration Hook
+%%%===================================================================
 check_token(_User, _Host, Packet) ->
     Token = extract_token(Packet),
     case validate_and_decrement(Token) of
-        ok -> ok;   %% allow registration to continue
-        Error -> {error, Error}
+        ok     -> ok;                    % allow
+        Reason -> {error, Reason}        % block
     end.
 
 extract_token(Packet) ->
-    %% Quick & dirty XPath‑like extraction.  Adapt to your needs.
-    case xml:get_path_s(Packet, ["iq", "query", "token"]) of
-        <<>> -> %% fallback to password‑prefixed method
-            case xml:get_path_s(Packet, ["iq", "query", "password"]) of
-                Password when byte_size(Password) > 6,
-                               binary:part(Password, 0, 6) =:= <<"token:">> ->
-                     binary:part(Password, 6, byte_size(Password) - 6);
-                _ -> <<>>
-            end;
+    %% 1) explicit <token> element
+    case xml:get_path_s(Packet, ["iq","query","token"]) of
+        <<>> -> extract_token_from_password(Packet);
         Token -> Token
     end.
 
-validate_and_decrement(<<>>) ->
-    not_allowed;  %% no token at all
+extract_token_from_password(Packet) ->
+    Pass = xml:get_path_s(Packet, ["iq","query","password"]),
+    Prefix = <<"token:">>,
+    case binary:match(Pass, Prefix) of
+        {0,_Len} -> binary:part(Pass, byte_size(Prefix), byte_size(Pass)-byte_size(Prefix));
+        nomatch  -> <<>>
+    end.
+
+validate_and_decrement(<<>>) -> not_allowed;
 validate_and_decrement(Token) ->
     Fun = fun() ->
         case mnesia:read(invite_token, Token, write) of
-            [#invite_token{expiry = Exp, uses_left = UsesLeft} = Rec] ->
-                case Exp > erlang:system_time(second) of
-                    false -> mnesia:delete(invite_token, Token, write), expired;
-                    true  ->
-                        case UsesLeft > 0 of
-                            false -> mnesia:delete(invite_token, Token, write), exhausted;
-                            true  ->
-                                NewRec = Rec#invite_token{uses_left = UsesLeft - 1},
-                                mnesia:write(NewRec, write),
-                                ok
-                        end
+            [#invite_token{expiry = Exp, uses_left = Uses}=Rec] when Exp > os:system_time(second) ->
+                case Uses of
+                    0 -> exhausted;
+                    _ -> mnesia:write(Rec#invite_token{uses_left=Uses-1}), ok
                 end;
-            [] -> invalid
+            [_]  -> expired;
+            []   -> invalid
         end
     end,
-    {atomic, Result} = mnesia:transaction(Fun),
-    Result.
+    {atomic, Res} = mnesia:transaction(Fun),
+    Res.
 
-%%%======================================================================
-%%% Invite creation commands
-%%%======================================================================
-%% Called via ejabberdctl create_invite host url 86400 5
-ejabberd_ctl_create(Host, [TypeStr, ValidityStr, UsesStr]) ->
-    Type   = list_to_atom(TypeStr),
-    ValidS = list_to_integer(ValidityStr),
-    Uses   = list_to_integer(UsesStr),
-    Token  = new_token(Host, ValidS, Uses),
-    format_token(Type, Host, Token).
+%%%===================================================================
+%%% Ad-hoc command (XEP‑0050)
+%%%===================================================================
+adhoc_invite(_User, Host, _Lang, _Session) ->
+    Lifetime = get_opt(token_lifetime),
+    Uses     = get_opt(default_uses),
+    Token    = new_token(Host, Lifetime, Uses),
+    Url      = format_token(url, Host, Token),
+    {result, [#xmlel{name = <<"note">>,
+                     attrs = [{<<"type">>, <<"info">>}],
+                     children = [#xmlcdata{content = Url}]}]}.
 
-%% Ad‑hoc command implementation (authenticated user context)
-adhoc_invite(_User, _Server, _Lang, _Session) ->
-    Token = new_token(_Server, get(opt, token_lifetime), get(opt, default_uses)),
-    Url   = format_token(url, _Server, Token),
-    {result, [#xmlel{name = <<"note">>, attrs = [{<<"type">>, <<"info">>}],
-               children = [#xmlcdata{content = Url}]}]}.
-
-%%%----------------------------------------------------------------------
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
 new_token(Host, Lifetime, Uses) ->
     Token = base32:encode(crypto:strong_rand_bytes(16)),
-    Expiry = erlang:system_time(second) + Lifetime,
-    Obj = #invite_token{token = Token, host = Host, expiry = Expiry, uses_left = Uses},
-    mnesia:transaction(fun() -> mnesia:write(Obj) end),
+    Exp   = os:system_time(second)+Lifetime,
+    Rec   = #invite_token{token=Token,host=Host,expiry=Exp,uses_left=Uses},
+    mnesia:transaction(fun() -> mnesia:write(Rec) end),
     Token.
 
-format_token(raw, _Host, Token) -> Token;
 format_token(url, Host, Token) ->
-    Base = get(opt, invite_base_url),
-    Base ++ "?host=" ++ binary_to_list(Host) ++ "&token=" ++ Token;
-format_token(qr, Host, Token) ->
-    Url = format_token(url, Host, Token),
-    %% Requires hexpm qrcode lib: qrcode:encode/1 returns PNG binary
-    QR  = qrcode:encode(list_to_binary(Url)),
-    DataURI = "data:image/png;base64," ++ base64:encode(QR),
-    DataURI.
+    Base = get_opt(invite_base_url),
+    list_to_binary(Base ++ "?host=" ++ binary_to_list(Host) ++ "&token=" ++ Token);
+format_token(raw, _H, T) -> T;
+format_token(qr, Host, Token) ->   % optional dependency
+    PngBin = qrcode:encode(format_token(url, Host, Token)),
+    <<"data:image/png;base64,", (base64:encode(PngBin))/binary>>.
 
-%%%======================================================================
-%%% Helpers
-%%%======================================================================
-ensure_table() ->
-    Tab = invite_token,
-    mnesia:create_table(Tab, [{disc_copies, [node()]},
-                              {attributes, record_info(fields, invite_token)}]),
-    ok.
-
-get(opt, Key) ->
+get_opt(Key) ->
     {ok, Opts} = gen_mod:get_module_opts(?MODULE),
     proplists:get_value(Key, Opts).
+
+ensure_table() ->
+    mnesia:create_table(invite_token,
+        [{disc_copies,[node()]},
+         {attributes, record_info(fields, invite_token)},
+         {type, set}]),
+    ok.
