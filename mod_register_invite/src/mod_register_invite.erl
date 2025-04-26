@@ -26,6 +26,7 @@
 -export([adhoc_invite/4]).
 
 -include("xmpp.hrl").  %% provides #xmlel{} etc.
+-include("ejabberd.hrl").
 
 -record(invite_token, {
           token      :: binary(),
@@ -87,7 +88,8 @@ validate_and_decrement(Token) ->
     Fun = fun() ->
         case mnesia:read(invite_token, Token, write) of
             [#invite_token{expiry = Exp, uses_left = Uses}=Rec] ->
-                if Exp > os:system_time(second) ->
+                Now = erlang:system_time(second),
+                if Exp > Now ->
                     case Uses of
                         0 -> exhausted;
                         _ -> mnesia:write(Rec#invite_token{uses_left=Uses-1}), ok
