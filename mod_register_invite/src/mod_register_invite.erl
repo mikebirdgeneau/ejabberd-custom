@@ -144,8 +144,8 @@ format_token(qr, Host, Token) ->   % optional dependency
     PngBin = qrcode:encode(format_token(url, Host, Token)),
     <<"data:image/png;base64,", (base64:encode(PngBin))/binary>>.
 
-get_opt(Key) ->
-    {ok, Opts} = gen_mod:get_module_opts(?MODULE),
+get_opt(Host, Key) ->
+    {ok, Opts} = gen_mod:get_module_opts(Host, ?MODULE),
     proplists:get_value(Key, Opts).
 
 ensure_table() ->
