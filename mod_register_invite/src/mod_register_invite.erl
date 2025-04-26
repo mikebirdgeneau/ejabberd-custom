@@ -25,8 +25,7 @@
 %% Ad‑hoc command
 -export([adhoc_invite/4]).
 
--include("xmpp.hrl").  %% provides #xmlel{} etc.
--include("ejabberd.hrl").
+-include_lib("xmpp/include/xmpp.hrl").
 
 -record(invite_token, {
           token      :: binary(),
