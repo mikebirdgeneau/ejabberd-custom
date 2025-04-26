@@ -26,7 +26,7 @@
 -export([adhoc_invite/4]).
 
 -include_lib("xmpp/include/xmpp.hrl").
--include_lib("ejabberd/include/ejabberd.hrl").
+-record(xmlcdata, {content :: binary()}).
 
 -record(invite_token, {
           token      :: binary(),
