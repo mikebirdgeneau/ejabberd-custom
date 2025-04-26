@@ -26,6 +26,7 @@
 -export([adhoc_invite/4]).
 
 -include_lib("xmpp/include/xmpp.hrl").
+-include_lib("fast_xml/include/xml.hrl").
 
 -record(invite_token, {
           token      :: binary(),
