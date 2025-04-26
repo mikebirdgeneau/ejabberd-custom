@@ -1,5 +1,5 @@
 author: "Mike Birdgeneau <mike.birdgeneau at gmail.com>"
 category: "register"
 summary: "Registration by invitation"
-home: "https://github.com/mikebirdgeneau/mod_register_invite/tree/main/"
-git: "git@github.com:mikebirdgeneau/mod_register_invite.git"
+home: "https://github.com/mikebirdgeneau/ejabberd-custom/tree/main/"
+git: "git@github.com:mikebirdgeneau/ejabberd-custom.git"

@@ -83,17 +83,18 @@ extract_token_from_password(Packet) ->
         nomatch  -> <<>>
     end.
 
-validate_and_decrement(<<>>) -> not_allowed;
 validate_and_decrement(Token) ->
     Fun = fun() ->
         case mnesia:read(invite_token, Token, write) of
-            [#invite_token{expiry = Exp, uses_left = Uses}=Rec] when Exp > os:system_time(second) ->
-                case Uses of
-                    0 -> exhausted;
-                    _ -> mnesia:write(Rec#invite_token{uses_left=Uses-1}), ok
+            [#invite_token{expiry = Exp, uses_left = Uses}=Rec] ->
+                if Exp > os:system_time(second) ->
+                    case Uses of
+                        0 -> exhausted;
+                        _ -> mnesia:write(Rec#invite_token{uses_left=Uses-1}), ok
+                    end;
+                true -> expired
                 end;
-            [_]  -> expired;
-            []   -> invalid
+            [] -> invalid
         end
     end,
     {atomic, Res} = mnesia:transaction(Fun),
