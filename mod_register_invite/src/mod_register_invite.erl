@@ -17,7 +17,14 @@
 %%----------------------------------------------------------------------
 %% API
 %%----------------------------------------------------------------------
--export([start/2, stop/1, depends/2, mod_options/1, mod_opt_type/1, mod_doc/0]).
+-export([
+    start/2,
+    stop/1,
+    depends/2,
+    mod_options/1,
+    mod_opt_type/1,
+    mod_doc/0
+]).
 
 %% Hooks
 -export([check_token/3]).
