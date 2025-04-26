@@ -17,7 +17,7 @@
 %%----------------------------------------------------------------------
 %% API
 %%----------------------------------------------------------------------
--export([start/2, stop/1, depends/2, mod_options/1, mod_doc/0]).
+-export([start/2, stop/1, depends/2, mod_options/1, mod_opt_type/1, mod_doc/0]).
 
 %% Hooks
 -export([check_token/3]).
@@ -58,6 +58,11 @@ mod_options(_Host) ->
     [{token_lifetime, 86400},      %% 1 day
      {default_uses,   1},
      {invite_base_url, "https://example.com/register"}].
+
+mod_opt_type(_Host) ->
+    [{token_lifetime, integer},
+     {default_uses,  integer},
+     {invite_base_url, string}].
 
 %%%===================================================================
 %%% Registration Hook
@@ -106,8 +111,8 @@ validate_and_decrement(Token) ->
 %%% Ad-hoc command (XEP‑0050)
 %%%===================================================================
 adhoc_invite(_User, Host, _Lang, _Session) ->
-    Lifetime = get_opt(token_lifetime),
-    Uses     = get_opt(default_uses),
+    Lifetime = get_opt(Host, token_lifetime),
+    Uses     = get_opt(Host, default_uses),
     Token    = new_token(Host, Lifetime, Uses),
     Url      = format_token(url, Host, Token),
     {result, [#xmlel{name = <<"note">>,
@@ -125,7 +130,7 @@ new_token(Host, Lifetime, Uses) ->
     Token.
 
 format_token(url, Host, Token) ->
-    Base = get_opt(invite_base_url),
+    Base = get_opt(Host, invite_base_url),
     list_to_binary(Base ++ "?host=" ++ binary_to_list(Host) ++ "&token=" ++ Token);
 format_token(raw, _H, T) -> T;
 format_token(qr, Host, Token) ->   % optional dependency
