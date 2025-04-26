@@ -1,0 +1,5 @@
+author: "Mike Birdgeneau <mike.birdgeneau at gmail.com>"
+category: "register"
+summary: "Registration by invitation"
+url: "https://github.com/mikebirdgeneau/mod_register_invite"
+git: "git@github.com:mikebirdgeneau/mod_register_invite.git"
