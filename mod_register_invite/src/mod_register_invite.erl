@@ -67,11 +67,12 @@ mod_options(_Host) ->
      {invite_base_url, "https://example.com/register"}].
 
 mod_opt_type(_Host) ->
-  {ok, [
-      {token_lifetime, integer},
-      {default_uses,  integer},
-      {invite_base_url, string}
-    ]}.
+  {ok, fun 
+        (token_lifetime) -> integer;
+        (default_uses) -> integer;
+        (invite_base_url) -> string;
+        (_) -> any
+      end}.
 
 %%%===================================================================
 %%% Registration Hook
