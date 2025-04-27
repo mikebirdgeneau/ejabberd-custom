@@ -29,11 +29,13 @@
 start(Host, _Opts) ->
     ensure_table(),
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
+    ejabberd_hooks:add(adhoc_local_items, Host, ?MODULE, adhoc_local_commands, 50),
     ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
     ok.
 
 stop(Host) ->
     ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
+    ejabberd_hooks:delete(adhoc_local_items, Host, ?MODULE, adhoc_local_commands, 50),
     ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
     ok.
 
