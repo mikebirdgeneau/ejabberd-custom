@@ -114,16 +114,17 @@ adhoc_local_items(Acc, _, _, _) ->
     Acc.
 
 adhoc_local_commands(_Acc, From, #jid{lserver = Host}, 
-                    #adhoc_command{node = <<"register-invite">>} = CmdReq) ->
+                    #adhoc_command{node = <<"register-invite">>,
+                                  lang = Lang, 
+                                  sid = Sid}) ->
     %% generate_invite_command/4 returns {result, XmlelChildren}
-    {result, Children} = generate_invite_command(From, Host, CmdReq#adhoc_command.lang, CmdReq#adhoc_command.sessionid),
-    {value, {result, Children}};
+    {value, generate_invite_command(From, Host, Lang, Sid)};
 adhoc_local_commands(Acc, _From, _To, _Req) ->
     Acc.
 
 
 %% Real handler for the command — signature required by ejabberd
-generate_invite_command(_From, Host, _Lang, _Session) ->
+generate_invite_command(_From, Host, _Lang, _Sid) ->
     Lifetime = get_opt(Host, token_lifetime),
     Uses     = get_opt(Host, default_uses),
     Token    = new_token(Host, Lifetime, Uses),
