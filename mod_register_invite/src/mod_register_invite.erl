@@ -66,13 +66,10 @@ mod_options(_Host) ->
      {default_uses,   1},
      {invite_base_url, "https://example.com/register"}].
 
-mod_opt_type(_Host) ->
-  {ok, fun 
-        (token_lifetime) -> integer;
-        (default_uses) -> integer;
-        (invite_base_url) -> string;
-        (_) -> any
-      end}.
+mod_opt_type(token_lifetime)  -> econf:pos_int();    %% >0 seconds
+mod_opt_type(default_uses)    -> econf:pos_int();    %% >0 uses
+mod_opt_type(invite_base_url) -> econf:string();     %% any URL
+mod_opt_type(_) -> [token_lifetime, default_uses, invite_base_url].
 
 %%%===================================================================
 %%% Registration Hook
