@@ -67,11 +67,11 @@ mod_options(_Host) ->
      {invite_base_url, "https://example.com/register"}].
 
 mod_opt_type(_Host) ->
-    yconf:ok([
+  {ok, [
       {token_lifetime, integer},
       {default_uses,  integer},
       {invite_base_url, string}
-    ]).
+    ]}.
 
 %%%===================================================================
 %%% Registration Hook
