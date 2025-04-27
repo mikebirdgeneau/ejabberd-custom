@@ -9,7 +9,9 @@
          mod_options/1, mod_opt_type/1, mod_doc/0]).
 
 %% Hook callbacks ------------------------------------------------------
--export([check_token/3, adhoc_local_commands/4]).
+-export([check_token/3, 
+         adhoc_local_items/4,
+         adhoc_local_commands/4]).
 
 -include_lib("xmpp/include/xmpp.hrl").
 -record(xmlcdata, {content :: binary()}).
@@ -100,11 +102,25 @@ validate_and_decrement(Token) ->
 %%% Ad‑hoc command exposure
 %%%===================================================================
 %% When Service Discovery lists commands, ejabberd calls this hook.
-adhoc_local_commands(Acc, _From, #jid{lserver = Host} = _To, _Req) ->
-    Cmd = #adhoc_command{node = <<"register-invite">>,
-                         name = <<"Generate Invite">>,
-                         handler = fun ?MODULE:generate_invite_command/4},
-    [Cmd | Acc].
+
+adhoc_local_items({result, Items}, _From, #jid{lserver = Host}, _Lang) ->
+    CmdItem = #disco_item{
+        jid  = jid:make(Host),
+        node = <<"register-invite">>,
+        name = <<"Generate Invite">>
+    },
+    {result, [CmdItem | Items]};
+adhoc_local_items(Acc, _, _, _) ->
+    Acc.
+
+adhoc_local_commands(_Acc, From, #jid{lserver = Host}, 
+                    #adhoc_command{node = <<"register-invite">>} = CmdReq) ->
+    %% generate_invite_command/4 returns {result, XmlelChildren}
+    {result, Children} = generate_invite_command(From, Host, CmdReq#adhoc_command.lang, CmdReq#adhoc_command.sessionid),
+    {value, {result, Children}};
+adhoc_local_commands(Acc, _From, _To, _Req) ->
+    Acc.
+
 
 %% Real handler for the command — signature required by ejabberd
 generate_invite_command(_From, Host, _Lang, _Session) ->
@@ -138,7 +154,7 @@ get_opt(Host, Key) ->
     {ok, Opts} = gen_mod:get_module_opts(Host, ?MODULE),
     proplists:get_value(Key, Opts).
 
-aensure_table() ->
+ensure_table() ->
     mnesia:create_table(invite_token,
         [{disc_copies, [node()]},
          {attributes, record_info(fields, invite_token)},
