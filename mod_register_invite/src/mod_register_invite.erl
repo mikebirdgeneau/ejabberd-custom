@@ -5,8 +5,12 @@
 -behaviour(gen_mod).
 
 %% API callbacks -------------------------------------------------------
--export([start/2, stop/1, depends/2,
-         mod_options/1, mod_opt_type/1, mod_doc/0]).
+-export([start/2, 
+         stop/1, 
+         depends/2,
+         mod_options/1, 
+         mod_opt_type/1, 
+         mod_doc/0]).
 
 %% Hook callbacks ------------------------------------------------------
 -export([check_token/3, 
@@ -29,13 +33,13 @@
 start(Host, _Opts) ->
     ensure_table(),
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
-    ejabberd_hooks:add(adhoc_local_items, Host, ?MODULE, adhoc_local_commands, 50),
+    ejabberd_hooks:add(adhoc_local_items, Host, ?MODULE, adhoc_local_items, 50),
     ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
     ok.
 
 stop(Host) ->
     ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
-    ejabberd_hooks:delete(adhoc_local_items, Host, ?MODULE, adhoc_local_commands, 50),
+    ejabberd_hooks:delete(adhoc_local_items, Host, ?MODULE, adhoc_local_items, 50),
     ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
     ok.
 
@@ -108,7 +112,7 @@ validate_and_decrement(Token) ->
 adhoc_local_items({result, Items}, _From, #jid{lserver = Host}, _Lang) ->
     CmdItem = #disco_item{
         jid  = jid:make(Host),
-        node = <<"register-invite">>,
+        node = <<"generate_invite">>,
         name = <<"Generate Invite">>
     },
     {result, [CmdItem | Items]};
@@ -116,7 +120,7 @@ adhoc_local_items(Acc, _, _, _) ->
     Acc.
 
 adhoc_local_commands(_Acc, From, #jid{lserver = Host}, 
-                    #adhoc_command{node = <<"register-invite">>,
+                    #adhoc_command{node = <<"generate_invite">>,
                                   lang = Lang, 
                                   sid = Sid}) ->
     %% generate_invite_command/4 returns {result, XmlelChildren}
