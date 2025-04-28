@@ -132,9 +132,12 @@ generate_invite_command(_From, Host, _Lang, _Sid) ->
     Uses     = get_opt(Host, default_uses),
     Token    = new_token(Host, Lifetime, Uses),
     Url      = format_token(url, Host, Token),
-    {result, [#xmlel{name = <<"note">>,
-                     attrs = [{<<"type">>, <<"info">>}],
-                     children = [#xmlcdata{content = Url}]}]}.
+    {result, 
+      [#xmlel{name  =    <<"note">>,
+              attrs =    [{<<"type">>, <<"info">>}],
+              children = [#xmlcdata{content = Url}]}
+      ]
+    }.
 
 %%%===================================================================
 %%% Helpers
