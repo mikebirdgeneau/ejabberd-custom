@@ -161,9 +161,9 @@ get_opt(Host, Key) ->
     Opts = 
       case gen_mod:get_module_opts(Host, ?MODULE) of
         {ok, O} -> O;
-+       empty   -> mod_options(Host)
-+      end,
-+    proplists:get_value(Key, Opts).
+        empty   -> mod_options(Host)
+      end,
+    proplists:get_value(Key, Opts).
 
 ensure_table() ->
     mnesia:create_table(invite_token,
