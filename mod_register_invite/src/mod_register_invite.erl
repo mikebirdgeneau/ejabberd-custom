@@ -158,18 +158,21 @@ format_token(qr, Host, Token) ->
     <<"data:image/png;base64,", (base64:encode(Png))/binary>>.
 
 get_opt(Host, Key) ->
-    Opts0 = gen_mod:get_module_opts(Host, ?MODULE)
+    Opts0 = gen_mod:get_module_opts(Host, ?MODULE),
 
-    OptsList = 
+    OptsList =
       case Opts0 of
-        {ok, O} when is_list(O) -> 
+        {ok, O} when is_list(O) ->
           O;
-        {ok, OMap} when is_map(OMap) -> 
+        {ok, OMap} when is_map(OMap) ->
           maps:to_list(OMap);
-        empty -> 
+        OMap when is_map(OMap) ->
+          maps:to_list(OMap);
+        empty ->
           mod_options(Host)
       end,
-    proplists:get_value(Key, Opts).
+
+    proplists:get_value(Key, OptsList).
 
 ensure_table() ->
     mnesia:create_table(invite_token,
