@@ -157,22 +157,23 @@ format_token(qr, Host, Token) ->
     Png = qrcode:encode(format_token(url, Host, Token)),
     <<"data:image/png;base64,", (base64:encode(Png))/binary>>.
 
+
 get_opt(Host, Key) ->
-    Opts0 = gen_mod:get_module_opts(Host, ?MODULE),
+    case gen_mod:get_module_opts(Host, ?MODULE) of
 
-    OptsList =
-      case Opts0 of
-        {ok, O} when is_list(O) ->
-          O;
-        {ok, OMap} when is_map(OMap) ->
-          maps:to_list(OMap);
-        OMap when is_map(OMap) ->
-          maps:to_list(OMap);
-        empty ->
-          mod_options(Host)
-      end,
+      {ok, Opts} when is_list(Opts) ->
+        proplists:get_value(Key, Opts);
 
-    proplists:get_value(Key, OptsList).
+      {ok, OptMap} when is_map(OptMap) ->
+        maps:get(Key, OptMap);
+
+      OptMap when is_map(OptMap) ->
+        maps:get(Key, OptMap);
+
+      empty ->
+        proplists:get_value(Key, mod_options(Host))
+    end.
+
 
 ensure_table() ->
     mnesia:create_table(invite_token,
