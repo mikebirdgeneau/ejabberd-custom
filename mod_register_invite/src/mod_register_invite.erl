@@ -133,7 +133,12 @@ adhoc_local_commands(Acc, _From, _To, _Req) ->
 generate_invite_command(_From, Host, _Lang, _Sid) ->
     Lifetime = get_opt(Host, token_lifetime),
     Uses     = get_opt(Host, default_uses),
-    Token    = new_token(Host, Lifetime, Uses),
+    Bin      = crypto:strong_rand_bytes(16),
+    TokenParts = binary:split(base64:encode(Bin), <<"=">>, [global]),
+    Token = <<(lists:flatten(TokenParts))/binary>>,
+    Exp   = erlang:system_time(second) + Lifetime,
+    Rec   = #invite_token{token = Token, host = Host, expiry = Exp, uses_left = Uses},
+    mnesia:transaction(fun() -> mnesia:write(Rec) end),
     Url      = format_token(url, Host, Token),
     {result, [#xmlel{name = <<"note">>,
                      attrs = [{<<"type">>, <<"info">>}],
@@ -144,8 +149,8 @@ generate_invite_command(_From, Host, _Lang, _Sid) ->
 %%%===================================================================
 new_token(Host, Lifetime, Uses) ->
     Bin   = crypto:strong_rand_bytes(16),
-    TokenParts = binary:split(base64:encode(Bin), <<"=">>, [global]),
-    Token = lists:flatten(TokenParts),
+    Token = base64:encode(Bin),
+    Token = lists:flatten(binary:split(Token, <<"=">>, [global])),
     Exp   = erlang:system_time(second) + Lifetime,
     Rec   = #invite_token{token = Token, host = Host, expiry = Exp, uses_left = Uses},
     mnesia:transaction(fun() -> mnesia:write(Rec) end),
