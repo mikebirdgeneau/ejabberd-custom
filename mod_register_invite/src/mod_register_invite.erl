@@ -19,6 +19,7 @@
 
 -include_lib("xmpp/include/xmpp.hrl").
 -record(xmlcdata, {content :: binary()}).
+-include_lib("xmll/include/xmll_util.hrl").
 
 -record(invite_token, {
           token      :: binary(),
@@ -119,14 +120,28 @@ adhoc_local_items({result, Items}, _From, #jid{lserver = Host}, _Lang) ->
 adhoc_local_items(Acc, _, _, _) ->
     Acc.
 
-adhoc_local_commands(_Acc, From, #jid{lserver = Host},
-                    #adhoc_command{node = <<"generate_invite">>,
-                                  lang = Lang, sid = Sid}) ->
-    generate_invite_command(From, Host, Lang, Sid);
+
+adhoc_local_commands(_Acc, _From, #jid{lserver = Host},
+                    Request = #adhoc_command{
+                      node   = <<"generate_invite">>,
+                      action = execute,
+                      lang   = Lang
+                    }) ->
+    Lifetime = get_opt(Host, token_lifetime),
+    Uses     = get_opt(Host, default_uses),
+    Token    = new_token(Host, Lifetime, Uses),
+    Url      = format_token(url, Host, Token),
+
+    xmpp_util:make_adhoc_response(
+      Request,
+      #adhoc_command{
+        status = completed,
+        notes  = [#adhoc_note{type = info, data = Url}]
+      });
+
 adhoc_local_commands(Acc, _From, _To, _Req) ->
     Acc.
 
-%% Real handler for the command — signature required by ejabberd
 generate_invite_command(_From, Host, _Lang, _Sid) ->
     Lifetime = get_opt(Host, token_lifetime),
     Uses     = get_opt(Host, default_uses),
