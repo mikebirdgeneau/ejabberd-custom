@@ -119,15 +119,15 @@ adhoc_local_items({result, Items}, _From, #jid{lserver = Host}, _Lang) ->
 adhoc_local_items(Acc, _, _, _) ->
     Acc.
 
-adhoc_local_commands(_Acc, From, #jid{lserver = Host}, 
+adhoc_local_commands(_Acc, From, #jid{lserver = Host},
                     #adhoc_command{node = <<"generate_invite">>,
-                                  lang = Lang, 
-                                  sid = Sid}) ->
-    %% generate_invite_command/4 returns {result, XmlelChildren}
-    {value, generate_invite_command(From, Host, Lang, Sid)};
+                                   action = execute,
+                                   lang = Lang,
+                                   sid = Sid}) ->
+    {ResultTag, Children} = generate_invite_command(From, Host, Lang, Sid),
+    {stop, {ResultTag, Children}};
 adhoc_local_commands(Acc, _From, _To, _Req) ->
     Acc.
-
 
 %% Real handler for the command — signature required by ejabberd
 generate_invite_command(_From, Host, _Lang, _Sid) ->
