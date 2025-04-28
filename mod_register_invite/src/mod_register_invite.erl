@@ -154,7 +154,12 @@ new_token(Host, Lifetime, Uses) ->
 
 format_token(url, Host, Token) ->
     Base = get_opt(Host, invite_base_url),
-    list_to_binary(Base ++ "?host=" ++ binary_to_list(Host) ++ "&token=" ++ Token);
+    iolist_to_binary([
+      Base,
+      "&token=",
+      Token
+    ]);
+
 format_token(raw, _Host, Token) -> Token;
 format_token(qr, Host, Token) ->
     Png = qrcode:encode(format_token(url, Host, Token)),
