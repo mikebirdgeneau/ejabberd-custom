@@ -158,10 +158,16 @@ format_token(qr, Host, Token) ->
     <<"data:image/png;base64,", (base64:encode(Png))/binary>>.
 
 get_opt(Host, Key) ->
-    Opts = 
-      case gen_mod:get_module_opts(Host, ?MODULE) of
-        {ok, O} -> O;
-        empty   -> mod_options(Host)
+    Opts0 = gen_mod:get_module_opts(Host, ?MODULE)
+
+    OptsList = 
+      case Opts0 of
+        {ok, O} when is_list(O) -> 
+          O;
+        {ok, OMap} when is_map(OMap) -> 
+          maps:to_list(OMap);
+        empty -> 
+          mod_options(Host)
       end,
     proplists:get_value(Key, Opts).
 
