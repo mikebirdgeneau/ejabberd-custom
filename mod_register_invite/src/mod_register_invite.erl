@@ -158,8 +158,12 @@ format_token(qr, Host, Token) ->
     <<"data:image/png;base64,", (base64:encode(Png))/binary>>.
 
 get_opt(Host, Key) ->
-    {ok, Opts} = gen_mod:get_module_opts(Host, ?MODULE),
-    proplists:get_value(Key, Opts).
+    Opts = 
+      case gen_mod:get_module_opts(Host, ?MODULE) of
+        {ok, O} -> O;
++       empty   -> mod_options(Host)
++      end,
++    proplists:get_value(Key, Opts).
 
 ensure_table() ->
     mnesia:create_table(invite_token,
