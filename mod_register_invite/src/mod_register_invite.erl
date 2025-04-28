@@ -145,7 +145,7 @@ generate_invite_command(_From, Host, _Lang, _Sid) ->
 new_token(Host, Lifetime, Uses) ->
     Bin   = crypto:strong_rand_bytes(16),
     Token = base64:encode(Bin),
-    Token = binary:split(Token, <<"=">>, [global]) |> lists:flatten()),
+    Token = lists:flatten(binary:split(Token, <<"=">>, [global])),
     Exp   = erlang:system_time(second) + Lifetime,
     Rec   = #invite_token{token = Token, host = Host, expiry = Exp, uses_left = Uses},
     mnesia:transaction(fun() -> mnesia:write(Rec) end),
