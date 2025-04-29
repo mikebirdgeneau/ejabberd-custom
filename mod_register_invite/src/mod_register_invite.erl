@@ -21,8 +21,7 @@
     adhoc_local_commands/4
 ]).
 
--include_lib("xmpp/include/xmpp.hrl").  %% brings in adhoc_command, xdata, etc.
--include_lib("ejabberd/include/ejabberd.hrl").
+-include_lib("xmpp/include/xmpp.hrl").
 
 -record(invite_token, {
     token      :: binary(),
@@ -124,7 +123,9 @@ adhoc_local_items(Acc, _, _, _) ->
 %%%===================================================================
 %% Step 1: form request
 adhoc_local_commands(
-    Acc = #adhoc_command{node=<<"generate_invite">>, action=execute, form=undefined},
+    Acc = #adhoc_command{node = <<"generate_invite">>, 
+                         action=execute, 
+                         form=undefined},
     _From,
     #jid{lserver = Host},
     _Req
@@ -137,15 +138,23 @@ adhoc_local_commands(
         title        = <<"Generate Invite">>,
         instructions = [<<"Set optional parameters or use defaults.">>],
         fields       = [
-            #xdata_field{var=<<"uses">>,     type=<<"text-single">>, label=<<"Number of invites">>, required=false, value=integer_to_list(DefaultUses)},
-            #xdata_field{var=<<"lifetime">>, type=<<"text-single">>, label=<<"Lifetime (sec)">>,       required=false, value=integer_to_list(DefaultLifetime)}
+            #xdata_field{var = <<"uses">>,     
+                         type = <<"text-single">>,
+                         label = <<"Number of invites">>, 
+                         required=false, 
+                         value=integer_to_list(DefaultUses)},
+            #xdata_field{var = <<"lifetime">>,
+                         type = <<"text-single">>,
+                         label = <<"Lifetime (sec)">>,
+                         required=false,
+                         value=integer_to_list(DefaultLifetime)}
         ]
     },
     Acc#adhoc_command{status=executing, form=Form};
 
 %% Step 2: form submitted -> generate URL
 adhoc_local_commands(
-    Acc = #adhoc_command{node=<<"generate_invite">>, action=execute, form=#xdata{fields=Fields}},
+    Acc = #adhoc_command{node = <<"generate_invite">>, action=execute, form=#xdata{fields=Fields}},
     _From,
     #jid{lserver = Host},
     _Req
