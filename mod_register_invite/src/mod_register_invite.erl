@@ -19,7 +19,7 @@
 
 -include_lib("xmpp/include/xmpp.hrl").
 -record(xmlcdata, {content :: binary()}).
--include_lib("xmll/include/xmll_util.hrl").
+-include_lib("xmpp/include/xmpp_util.hrl").
 
 -record(invite_token, {
           token      :: binary(),
