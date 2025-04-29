@@ -1,0 +1,6 @@
+author: "Mike Birdgeneau <mike.birdgeneau at gmail.com>"
+category: "register"
+summary: "Registration Web frontend with invitation token"
+url: "https://github.com/mikebirdgeneau/ejabberd-custom/mod_register_invite_web"
+home: "https://github.com/mikebirdgeneau/ejabberd-custom/tree/main/"
+git: "git@github.com:mikebirdgeneau/ejabberd-custom.git"
