@@ -1,5 +1,5 @@
 %%%---------------------------------------------------------------------
-%%% @doc  Invite‑only in‑band registration for ejabberd with optional arguments
+%%% @doc  Invite‑only in‑band registration for ejabberd
 %%%---------------------------------------------------------------------
 -module(mod_register_invite).
 -behaviour(gen_mod).
@@ -21,7 +21,8 @@
     adhoc_local_commands/4
 ]).
 
--include_lib("xmpp/include/xmpp.hrl").
+-include_lib("xmpp/include/xmpp.hrl").    %% brings in #jid{}, #xmlel{}, #xmlcdata{}, #adhoc_command{}, #adhoc_note{}
+-include("ejabberd.hrl").                 %% brings in ejabberd_hooks, econf, #disco_item, etc.
 
 -record(invite_token, {
     token      :: binary(),
@@ -37,31 +38,33 @@ start(Host, _Opts) ->
     ensure_table(),
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
-    ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+    ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands,  50),
     ok.
 
 stop(Host) ->
     ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
-    ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+    ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands,  50),
     ok.
 
-depends(_Host, _Opts) -> [{mod_adhoc, hard}].
+depends(_Host, _Opts) ->
+    [{mod_adhoc, hard}].
 
 %%%-------------------------------------------------------------------
 mod_options(Host) ->
     DefaultBase = <<"https://", Host/binary, "/register">>,
-    [{token_lifetime,   86400},    %% default seconds
-     {default_uses,     1},
-     {invite_base_url,  DefaultBase}
+    [{token_lifetime, 86400},    %% seconds
+     {default_uses,   1},
+     {invite_base_url, DefaultBase}
     ].
 
-mod_opt_type(token_lifetime)   -> econf:pos_int();
-mod_opt_type(default_uses)     -> econf:pos_int();
-mod_opt_type(invite_base_url)  -> econf:string();
-mod_opt_type(_)                -> [token_lifetime, default_uses, invite_base_url].
+mod_opt_type(token_lifetime)  -> econf:pos_int();
+mod_opt_type(default_uses)    -> econf:pos_int();
+mod_opt_type(invite_base_url) -> econf:string();
+mod_opt_type(_)               -> [token_lifetime, default_uses, invite_base_url].
 
-mod_doc() -> "Invite-only registration with expiring tokens (optional uses/lifetime)".
+mod_doc() ->
+    "Invite-only registration with expiring tokens".
 
 %%%===================================================================
 %%% Registration Hook
@@ -90,7 +93,7 @@ extract_token_from_password(Packet) ->
 validate_and_decrement(Token) ->
     Fun = fun() ->
         case mnesia:read(invite_token, Token, write) of
-            [#invite_token{expiry=Exp, uses_left=Uses} = Rec] ->
+            [#invite_token{expiry = Exp, uses_left = Uses} = Rec] ->
                 Now = erlang:system_time(second),
                 if Exp > Now ->
                        case Uses of
@@ -119,59 +122,28 @@ adhoc_local_items(Acc, _, _, _) ->
     Acc.
 
 %%%===================================================================
-%%% Ad-hoc command: two-step form + generate URL
+%%% Ad-hoc command: generate & return URL
 %%%===================================================================
-%% Step 1: form request
 adhoc_local_commands(
-    Acc = #adhoc_command{node = <<"generate_invite">>, 
-                         action=execute, 
-                         form=undefined},
+    _Acc,
     _From,
     #jid{lserver = Host},
-    _Req
+    Request = #adhoc_command{node = <<"generate_invite">>, action = execute}
 ) ->
-    DefaultUses     = get_opt(Host, default_uses),
-    DefaultLifetime = get_opt(Host, token_lifetime),
-    Form = #xdata{
-        xmlns        = <<"jabber:x:data">>,
-        type         = form,
-        title        = <<"Generate Invite">>,
-        instructions = [<<"Set optional parameters or use defaults.">>],
-        fields       = [
-            #xdata_field{var = <<"uses">>,     
-                         type = <<"text-single">>,
-                         label = <<"Number of invites">>, 
-                         required=false, 
-                         value=integer_to_list(DefaultUses)},
-            #xdata_field{var = <<"lifetime">>,
-                         type = <<"text-single">>,
-                         label = <<"Lifetime (sec)">>,
-                         required=false,
-                         value=integer_to_list(DefaultLifetime)}
-        ]
-    },
-    Acc#adhoc_command{status=executing, form=Form};
+    Uses  = proplists:get_value(default_uses, mod_options(Host)),
+    Life  = proplists:get_value(token_lifetime, mod_options(Host)),
+    Url   = generate_invite_url(Host, Uses, Life),
+    %% update & return command record
+    Request#adhoc_command{
+      status = completed,
+      notes  = [#adhoc_note{type = info, data = Url}]
+    };
 
-%% Step 2: form submitted -> generate URL
-adhoc_local_commands(
-    Acc = #adhoc_command{node = <<"generate_invite">>, action=execute, form=#xdata{fields=Fields}},
-    _From,
-    #jid{lserver = Host},
-    _Req
-) ->
-    UsesStr     = proplists:get_value(<<"uses">>, Fields, integer_to_list(get_opt(Host, default_uses))),
-    LifetimeStr = proplists:get_value(<<"lifetime">>, Fields, integer_to_list(get_opt(Host, token_lifetime))),
-    {ok, Uses} = string:to_integer(UsesStr),
-    {ok, Life} = string:to_integer(LifetimeStr),
-    Url = generate_invite_url(Host, Uses, Life),
-    Acc#adhoc_command{status=completed, notes=[#adhoc_note{type=info, data=Url}]};
-
-%% Fallback
-adhoc_local_commands(Acc, _From, _To, _Req) ->
+adhoc_local_commands(Acc, _, _, _) ->
     Acc.
 
 %%%===================================================================
-%%% Invite URL generator helper
+%%% Invite URL generator
 %%%===================================================================
 -spec generate_invite_url(binary(), non_neg_integer(), non_neg_integer()) -> binary().
 generate_invite_url(Host, Uses, LifetimeSecs) ->
@@ -182,18 +154,17 @@ generate_invite_url(Host, Uses, LifetimeSecs) ->
 %%% Helpers
 %%%===================================================================
 new_token(Host, Lifetime, Uses) ->
-    Bin = crypto:strong_rand_bytes(16),
+    Bin      = crypto:strong_rand_bytes(16),
     TokenBin = base64:encode(Bin),
-    [Token | _] = binary:split(TokenBin, <<"=">>, [global]),
-    TokenStr = binary_to_list(Token),
-    Rec = #invite_token{token=TokenStr, host=Host,
-                        expiry=erlang:system_time(second)+Lifetime,
-                        uses_left=Uses},
-    mnesia:transaction(fun() -> mnesia:write(Rec) end),
+    [Tok | _] = binary:split(TokenBin, <<"=">>, [global]),
+    TokenStr = binary_to_list(Tok),
+    Exp      = erlang:system_time(second) + Lifetime,
+    Rec      = #invite_token{token = TokenStr, host = Host, expiry = Exp, uses_left = Uses},
+    _        = mnesia:transaction(fun() -> mnesia:write(Rec) end),
     TokenStr.
 
 format_token(url, Host, Token) ->
-    Base = get_opt(Host, invite_base_url),
+    Base = proplists:get_value(invite_base_url, mod_options(Host)),
     iolist_to_binary([Base, "?token=", Token]);
 format_token(raw, _Host, Token) -> Token;
 format_token(qr, Host, Token) ->
@@ -203,16 +174,14 @@ format_token(qr, Host, Token) ->
 get_opt(Host, Key) ->
     case gen_mod:get_module_opts(Host, ?MODULE) of
         {ok, Opts} when is_list(Opts) -> proplists:get_value(Key, Opts);
-        {ok, OptMap} when is_map(OptMap) -> maps:get(Key, OptMap);
-        OptMap when is_map(OptMap)         -> maps:get(Key, OptMap);
-        empty                              -> proplists:get_value(Key, mod_options(Host))
+        {ok, Map} when is_map(Map)   -> maps:get(Key, Map);
+        Map when is_map(Map)         -> maps:get(Key, Map);
+        empty                        -> proplists:get_value(Key, mod_options(Host))
     end.
 
 ensure_table() ->
     mnesia:create_table(invite_token,
-        [ {disc_copies, [node()]},
-          {attributes, record_info(fields, invite_token)},
-          {type, set}
-        ]),
+        [{disc_copies, [node()]}, {attributes, record_info(fields, invite_token)}, {type, set}]
+    ),
     ok.
 
