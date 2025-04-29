@@ -21,8 +21,7 @@
     adhoc_local_commands/4
 ]).
 
--include_lib("xmpp/include/xmpp.hrl").    %% brings in #jid{}, #xmlel{}, #xmlcdata{}, #adhoc_command{}, #adhoc_note{}
--include("ejabberd.hrl").                 %% brings in ejabberd_hooks, econf, #disco_item, etc.
+-include_lib("xmpp/include/xmpp.hrl").
 
 -record(invite_token, {
     token      :: binary(),
