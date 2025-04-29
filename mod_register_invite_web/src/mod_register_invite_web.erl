@@ -90,8 +90,8 @@ invalid_token() ->
 %%%===================================================================
 handle_new_get(Token, Host, Lang, IP) ->
     case validate_token(Token) of
-        ok -> form_new_get(Host, Lang, IP, Token);
-        _  -> invalid_token()
+        ok -> form_new_get(Host, Lang, IP)
+      _  -> invalid_token()
     end.
 
 %%%===================================================================
@@ -99,7 +99,7 @@ handle_new_get(Token, Host, Lang, IP) ->
 %%%===================================================================
 handle_new_post(Token, Q, Lang, IP) ->
     case validate_token(Token) of
-        ok -> form_new_post(Q, IP, Lang);
+        ok -> form_new_post(Q, IP);
         _  -> invalid_token()
     end.
 
@@ -128,7 +128,7 @@ css() ->
     end.
 
 index_page(Lang) ->
-    HeadEls = [meta(), ?XCT(<<"title">>, ?T("XMPP Account Registration")),
+    HeadEls = [ ejabberd_web:meta(), ?XCT(<<"title">>, ?T("XMPP Account Registration")),
                ?XA(<<"link">>, [{<<"href">>, <<"register.css">>}, {<<"rel">>, <<"stylesheet">>}])],
     Els = [?XACT(<<"h1">>, [{<<"class">>, <<"title">>}], ?T("XMPP Account Registration")),
            ?XE(<<"ul">>, [?XE(<<"li">>, [?ACT(<<"new/?token=TOKEN">>, ?T("Register via Invite"))])])],
@@ -150,7 +150,7 @@ form_new_get(Host, Lang, IP) ->
     end.
 
 form_new_get2(Host, Lang, CaptchaEls) ->
-    HeadEls = [meta(),
+    HeadEls = [ ejabberd_web:meta(),
 	       ?XCT(<<"title">>,
 		    ?T("Register an XMPP account")),
 	       ?XA(<<"link">>,
@@ -297,7 +297,7 @@ build_captcha_li_list2(Lang, IP) ->
 %%%----------------------------------------------------------------------
 
 form_changepass_get(Host, Lang) ->
-    HeadEls = [meta(),
+    HeadEls = [ ejabberd_web:meta(),
 	       ?XCT(<<"title">>, ?T("Change Password")),
 	       ?XA(<<"link">>,
 		   [{<<"href">>, <<"../register.css">>},
@@ -404,7 +404,7 @@ check_password(Username, Host, Password) ->
 %%%----------------------------------------------------------------------
 
 form_del_get(Host, Lang) ->
-    HeadEls = [meta(),
+    HeadEls = [ ejabberd_web:meta(),
 	       ?XCT(<<"title">>,
 		    ?T("Unregister an XMPP account")),
 	       ?XA(<<"link">>,
