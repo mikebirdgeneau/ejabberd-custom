@@ -7,12 +7,10 @@
 
 -export([start/2, stop/1, reload/3, process/2, mod_options/1, depends/2, mod_doc/0]).
 -include_lib("xmpp/include/xmpp.hrl").
--include_lib("ejabberd_http/include/ejabberd_http.hrl").
--include_lib("ejabberd/src/ejabberd_web_admin.hrl").
--include_lib("ejabberd/src/translate.hrl").
+-include_lib("ejabberd/include/ejabberd_http.hrl").
+-include_lib("ejabberd/include/ejabberd_web_admin.hrl").
+-include_lib("ejabberd/include/translate.hrl").
 
-%% Import invite-token validation
--include_lib("mod_register_invite/include/mod_register_invite.hrl").
 
 %%%===================================================================
 %%% Lifecycle
