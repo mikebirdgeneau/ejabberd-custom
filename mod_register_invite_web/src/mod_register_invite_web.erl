@@ -6,7 +6,9 @@
 -behaviour(gen_mod).
 
 -export([start/2, stop/1, reload/3, process/2, mod_options/1, depends/2, mod_doc/0]).
+
 -include_lib("xmpp/include/xmpp.hrl").
+-include_lib("ejabberd/include/logger.hrl").
 -include_lib("ejabberd/include/ejabberd_http.hrl").
 -include_lib("ejabberd/include/ejabberd_web_admin.hrl").
 -include_lib("ejabberd/include/translate.hrl").
@@ -28,13 +30,6 @@ reload(_Host, _NewOpts, _OldOpts) ->
 depends(_Host, _Opts) ->
     [{mod_register_invite, hard},  %% require invite module
      {mod_register,      hard}].   %% require base register module
-
-mod_options(_Host) -> [];
-
-mod_doc() ->
-    #{desc => [?T("Invite-only registration web interface."),
-               ?T("Users must supply a valid token to access the registration form."),
-               ?T("This module depends on mod_register_invite and mod_register.")]}.
 
 %%%===================================================================
 %%% HTTP handler
