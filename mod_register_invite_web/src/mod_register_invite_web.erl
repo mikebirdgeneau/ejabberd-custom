@@ -90,7 +90,7 @@ invalid_token() ->
 %%%===================================================================
 handle_new_get(Token, Host, Lang, IP) ->
     case validate_token(Token) of
-        ok -> form_new_get(Host, Lang, IP)
+        ok -> form_new_get(Host, Lang, IP);
       _  -> invalid_token()
     end.
 
