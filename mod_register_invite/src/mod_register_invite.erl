@@ -220,30 +220,44 @@ get_opt(Host, Key) ->
         empty                        -> proplists:get_value(Key, mod_options(Host))
     end.
 
-on_vcard_get({#iq{type = get,
-                  id   = Id,
-                  from = FromJID,
-                  to   = {<<"invite">>, Host, _Res},
-                  subelems = [#xmlel{name = <<"vCard">>,
-                                     attrs = [{<<"xmlns">>, <<"vcard-temp">>}],
-                                     children = []}]}, _XML}, State) ->
+-spec on_vcard_get({#iq{}, any()}, state()) -> {stop, state()} | {pass, state()}.
+on_vcard_get(
+    {
+        IQ = #iq{
+            type = get,
+            id   = Id,
+            from = FromJID,
+            to   = {<<"invite">>, Host, _},
+            xml  = #xmlel{name     = <<"vCard">>,
+                         attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
+                         children = []
+                        }
+        },
+        _RawXML
+    },
+    State
+) ->
     ?INFO_MSG("mod_register_invite: vCard GET for invite@~s from ~p", [Host, FromJID]),
+
     Lifetime = get_opt(Host, token_lifetime),
     Uses     = get_opt(Host, default_uses),
     Token    = new_token(Host, Lifetime, Uses),
     Url      = format_token(url, Host, Token),
 
-    VCard = #xmlel{name    = <<"vCard">>,
-                   attrs   = [{<<"xmlns">>, <<"vcard-temp">>}],
-                   children = [
-                     #xmlel{name    = <<"FN">>,     attrs = [], children = [#xmlcdata{content = <<"Invite Link">>} ]},
-                     #xmlel{name    = <<"URL">>,    attrs = [], children = [#xmlcdata{content = Url}]}
-                   ]},
+    VCardElem = #xmlel{
+        name     = <<"vCard">>,
+        attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
+        children = [
+            #xmlel{name = <<"FN">>,   children = [#xmlcdata{content=<<"Invite Link">>}]},
+            #xmlel{name = <<"URL">>,  children = [#xmlcdata{content=Url}]}
+        ]
+    },
 
-    Reply = #iq{type = <<"result">>, to = FromJID, from = {<<"invite">>,Host,<<"service">>}, id = Id, subelems = [VCard]},
+    Reply = IQ#iq{type = <<"result">>, xml = VCardElem},
     ejabberd_router:route(Reply),
+
+    ?INFO_MSG("mod_register_invite: sent vCard result for invite@~s", [Host]),
     {stop, State};
 
-on_vcard_get(OtherIQ, State) ->
+on_vcard_get(_Any, State) ->
     {pass, State}.
-
