@@ -89,15 +89,18 @@ invalid_token() ->
 %%% Invitation-protected registration GET
 %%%===================================================================
 handle_new_get(Token, Host, Lang, IP) ->
+    ?INFO("HTTP GET /register/new?token=~p from ~p", [Token, IP]),
     case validate_token(Token) of
         ok -> form_new_get(Host, Lang, IP);
-      _  -> invalid_token()
+      _  -> ?WARN("Invalid or expired token access on web: ~s from ~p", [Token, IP]),
+            invalid_token()
     end.
 
 %%%===================================================================
 %%% Invitation-protected registration POST
 %%%===================================================================
 handle_new_post(Token, Q, Lang, IP) ->
+    ?INFO("HTTP POST /register/new?token=~p form-data=~p from ~p", [Token, Q, IP]),
     case validate_token(Token) of
         ok -> form_new_post(Q, IP);
         _  -> invalid_token()
@@ -105,12 +108,14 @@ handle_new_post(Token, Q, Lang, IP) ->
 
 validate_token(Token) ->
     %% Assume mod_register_invite provides this call
+    ?INFO("Web validating token=~s", [Token]),
     case catch mod_register_invite:validate_and_decrement(Token) of
         ok      -> ok;
         expired -> expired;
         invalid -> invalid;
         exhausted -> exhausted;
-        _ -> invalid
+        _ -> ?ERROR("Unexpected result from validate_and_decrement: ~p",[Other]),
+             invalid
     end.
 
 %%%===================================================================
