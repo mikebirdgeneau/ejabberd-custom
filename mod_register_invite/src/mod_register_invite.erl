@@ -173,7 +173,9 @@ generate_invite_url(Host, Uses, LifetimeSecs) ->
 new_token(Host, Lifetime, Uses) ->
     Bin      = crypto:strong_rand_bytes(16),
     TokenBin = base64:encode(Bin),
-    [Tok | _] = binary:split(TokenBin, <<"=">>, [global]),
+    [RawTok | _] = binary:split(TokenBin, <<"=">>, [global]),
+    Tok1     = binary:replace(RawTok, <<"+">>, <<"-">>, [global]),
+    Tok      = binary:replace(Tok1, <<"/">>, <<"_">>, [global]),
     Exp      = erlang:system_time(second) + Lifetime,
     Rec      = #invite_token{token = Tok, host = Host, expiry = Exp, uses_left = Uses},
     {atomic, WriteResult} = 
