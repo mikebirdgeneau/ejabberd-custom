@@ -4,14 +4,12 @@
 -module(mod_register_invite_web).
 -behaviour(gen_mod).
 -include("logger.hrl").
-
--export([start/2, stop/1, reload/3, process/2, mod_options/1, depends/2, mod_doc/0]).
-
 -include_lib("xmpp/include/xmpp.hrl").
 -include_lib("ejabberd/include/ejabberd_http.hrl").
 -include_lib("ejabberd/include/ejabberd_web_admin.hrl").
 -include_lib("ejabberd/include/translate.hrl").
 
+-export([start/2, stop/1, reload/3, process/2, mod_options/1, depends/2, mod_doc/0]).
 
 %%%===================================================================
 %%% Lifecycle
@@ -128,7 +126,7 @@ css() ->
     File = filename:join(Dir, "register.css"),
     case file:read_file(File) of
         {ok, Data}      -> {ok, Data};
-        {error, Why}    -> error
+        {error, _Why}    -> error
     end.
 
 index_page(Lang) ->
