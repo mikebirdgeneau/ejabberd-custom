@@ -225,62 +225,68 @@ get_opt(Host, Key) ->
     end.
 
 on_vcard_get(
-    {
-        IQ = #iq{
-            type = get,
-            id   = Id,
-            from = FromJID,
-            to   = {<<"invite">>, Host, _},
-            xml  = #xmlel{name     = <<"vCard">>,
-                         attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
-                         children = []
-                        }
+    { IQ = #iq{
+          type   = get,
+          id     = Id,
+          from   = FromJID,
+          to     = {<<"invite">>, Host, _},
+          sub_el = [#xmlel{
+                      name     = <<"vCard">>,
+                      attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
+                      children = []
+                    }]
         },
-        _RawXML
+      _RawXML
     },
     State
 ) ->
-    ?INFO_MSG("mod_register_invite: vCard GET for invite@~s from ~p", [Host, FromJID]),
-
-    Lifetime = get_opt(Host, token_lifetime),
-    Uses     = get_opt(Host, default_uses),
-    Token    = new_token(Host, Lifetime, Uses),
-    Url      = format_token(url, Host, Token),
-
+    Token = new_token(Host,
+                     get_opt(Host, token_lifetime),
+                     get_opt(Host, default_uses)),
+    Url   = format_token(url, Host, Token),
     VCardElem = #xmlel{
         name     = <<"vCard">>,
         attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
         children = [
-            #xmlel{name = <<"FN">>,   children = [#xmlcdata{content = <<"Invite Link">>}]},
-            #xmlel{name = <<"URL">>,  children = [#xmlcdata{content = Url}]}
+            #xmlel{
+              name     = <<"FN">>,
+              children = [{xmlcdata, <<"Invite Link">>}]
+            },
+            #xmlel{
+              name     = <<"URL">>,
+              children = [{xmlcdata, Url}]
+            }
         ]
     },
-
-    Reply = IQ#iq{type = <<"result">>, xml = VCardElem},
+    Reply = IQ#iq{
+        type   = result,
+        sub_el = [VCardElem]
+    },
     ejabberd_router:route(Reply),
-
-    ?INFO_MSG("mod_register_invite: sent vCard result for invite@~s", [Host]),
     {stop, State};
-
 on_vcard_get(_Any, State) ->
     {pass, State}.
 
 
 on_any_message(
-  #message{type = <<"chat">>, from=FromJID, to={<<"invite">>,Host,_}},
-  State
+    #message{type=chat, from=FromJID, to={<<"invite">>, Host, _}},
+    State
 ) ->
-    Token = new_token(Host, get_opt(Host, token_lifetime), get_opt(Host, default_uses)),
+    Token = new_token(Host,
+                     get_opt(Host, token_lifetime),
+                     get_opt(Host, default_uses)),
     Url   = format_token(url, Host, Token),
     Reply = #message{
-      to       = FromJID,
-      from     = {<<"invite">>, Host, <<"service">>},
-      type     = <<"chat">>,
-      subelems = [#xmlcdata{content = <<"Here’s your invite link: ">>},
-                  #xmlcdata{content = Url}]
+      to      = FromJID,
+      from    = {<<"invite">>, Host, <<"service">>},
+      type    = chat,
+      sub_els = [
+        {xmlcdata, <<"Here’s your invite link: ">>},
+        {xmlcdata, Url}
+      ]
     },
     ejabberd_router:route(Reply),
-    {stop, State};   %% drop the original message
+    {stop, State};
 on_any_message(_Msg, State) ->
     {pass, State}.
 
