@@ -20,6 +20,7 @@
     check_token/3,
     adhoc_local_items/4,
     adhoc_local_commands/4,
+    on_vcard_get/2,
     validate_and_decrement/1,
     peek_token/1
 ]).
@@ -50,6 +51,7 @@ start(Host, _Opts) ->
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands,  50),
+    ejabberd_hooks:add(iq_get, Host, ?MODULE, on_vcard_get,  100),
     ok.
 
 stop(Host) ->
@@ -218,4 +220,29 @@ get_opt(Host, Key) ->
         empty                        -> proplists:get_value(Key, mod_options(Host))
     end.
 
+on_vcard_get({#iq{type = get,
+                  id   = Id,
+                  from = FromJID,
+                  to   = {<<"invite">>, Host, _Res},
+                  subelems = [#xmlel{name = <<"vCard">>,
+                                     attrs = [{<<"xmlns">>, <<"vcard-temp">>}],
+                                     children = []}]}, _XML}, State) ->
+    Lifetime = get_opt(Host, token_lifetime),
+    Uses     = get_opt(Host, default_uses),
+    Token    = new_token(Host, Lifetime, Uses),
+    Url      = format_token(url, Host, Token),
+
+    VCard = #xmlel{name    = <<"vCard">>,
+                   attrs   = [{<<"xmlns">>, <<"vcard-temp">>}],
+                   children = [
+                     #xmlel{name    = <<"FN">>,     attrs = [], children = [#xmlcdata{content = <<"Invite Link">>} ]},
+                     #xmlel{name    = <<"URL">>,    attrs = [], children = [#xmlcdata{content = Url}]}
+                   ]},
+
+    Reply = #iq{type = <<"result">>, to = FromJID, from = {<<"invite">>,Host,<<"service">>}, id = Id, subelems = [VCard]},
+    ejabberd_router:route(Reply),
+    {stop, State};
+
+on_vcard_get(OtherIQ, State) ->
+    {pass, State}.
 
