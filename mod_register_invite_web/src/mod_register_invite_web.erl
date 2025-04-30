@@ -114,7 +114,7 @@ handle_new_post(Token, Q, Lang, IP) ->
         end;
       expired -> invalid_token();
       invalid -> invalid_token();
-      exhausted -> invalid_token();
+      exhausted -> invalid_token()
     end.
 
 validate_token(Token) ->
