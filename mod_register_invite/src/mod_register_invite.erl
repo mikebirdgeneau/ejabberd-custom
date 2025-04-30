@@ -21,8 +21,8 @@
     adhoc_local_commands/4
 ]).
 
+-include("logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
--include_lib("ejabberd/include/logger.hrl").
 
 -record(invite_token, {
     token      :: binary(),

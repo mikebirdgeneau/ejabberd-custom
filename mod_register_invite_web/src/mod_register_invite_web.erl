@@ -7,8 +7,8 @@
 
 -export([start/2, stop/1, reload/3, process/2, mod_options/1, depends/2, mod_doc/0]).
 
+-include("logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
--include_lib("ejabberd/include/logger.hrl").
 -include_lib("ejabberd/include/ejabberd_http.hrl").
 -include_lib("ejabberd/include/ejabberd_web_admin.hrl").
 -include_lib("ejabberd/include/translate.hrl").
