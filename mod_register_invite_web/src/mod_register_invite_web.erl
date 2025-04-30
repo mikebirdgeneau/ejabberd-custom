@@ -89,11 +89,11 @@ handle_new_get(Token, Host, Lang, IP) ->
     ?INFO_MSG("HTTP GET /register/new?token=~p from ~p", [Token, IP]),
     case mod_register_invite:peek_token(Token) of
       ok -> form_new_get(Token, Host, Lang, IP);
-      expired -> ?INFO_MSG("Token Expired"),
+      expired -> ?INFO_MSG("Token Expired (~p)", [Token]),
                  invalid_token(expired);
-      exhausted -> ?INFO_MSG("Token Exhausted"),
+      exhausted -> ?INFO_MSG("Token Exhausted (~p)", [Token]),
                    invalid_token(exhausted);
-      invalid -> ?INFO_MSG("Token Invalid"),
+      invalid -> ?INFO_MSG("Token Invalid (~p)", [Token]),
                  invalid_token(invalid)
     end.
 
