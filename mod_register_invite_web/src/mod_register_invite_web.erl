@@ -109,7 +109,7 @@ handle_new_post(Token, Q, Lang, IP) ->
             Body = <<"Your XMPP account ~s@~s has been created">>,
             {200, [{<<"Content-Type">>, <<"text/html; charset=utf-8">>}], Body};
           {error, Reason} -> 
-            ErrorText = mod_register_invite_web:get_error_text({error, Reason}, Lang),
+            ErrorText = get_error_text({error, Reason}, Lang),
             {400, [{<<"Content-Type">>, <<"text/html; charset=utf-8">>}], ErrorText}
         end;
       expired -> invalid_token();
