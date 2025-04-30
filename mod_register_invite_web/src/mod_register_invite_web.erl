@@ -6,6 +6,7 @@
 -include("logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
 -include_lib("ejabberd/include/ejabberd_http.hrl").
+-include_lib("ejabberd/include/ejabberd_web.hrl").
 -include_lib("ejabberd/include/ejabberd_web_admin.hrl").
 -include_lib("ejabberd/include/translate.hrl").
 
@@ -64,9 +65,9 @@ process2([<<"new">>], #request{method = 'POST', q = Q, lang = Lang, ip = {IP,_P}
         false      -> missing_token()
     end;
 
-process2([<<"delete">>], #request{method = 'POST', q = Q, lang = Lang}) ->
+process2([<<"delete">>], #request{method = 'POST', q = Q, lang = _Lang}) ->
     form_del_post(Q);
-process2([<<"change_password">>], #request{method = 'POST', q = Q, lang = Lang}) ->
+process2([<<"change_password">>], #request{method = 'POST', q = Q, lang = _Lang}) ->
     form_changepass_post(Q);
 process2(_, _) ->
     {404, [], "Not Found"}.
