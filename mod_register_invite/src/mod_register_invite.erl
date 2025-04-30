@@ -21,6 +21,7 @@
     adhoc_local_items/4,
     adhoc_local_commands/4,
     on_vcard_get/2,
+    on_any_message/2,
     validate_and_decrement/1,
     peek_token/1
 ]).
@@ -220,7 +221,6 @@ get_opt(Host, Key) ->
         empty                        -> proplists:get_value(Key, mod_options(Host))
     end.
 
--spec on_vcard_get({#iq{}, any()}, state()) -> {stop, state()} | {pass, state()}.
 on_vcard_get(
     {
         IQ = #iq{
@@ -248,8 +248,8 @@ on_vcard_get(
         name     = <<"vCard">>,
         attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
         children = [
-            #xmlel{name = <<"FN">>,   children = [#xmlcdata{content=<<"Invite Link">>}]},
-            #xmlel{name = <<"URL">>,  children = [#xmlcdata{content=Url}]}
+            #xmlel{name = <<"FN">>,   children = [#xmlcdata{content = <<"Invite Link">>}]},
+            #xmlel{name = <<"URL">>,  children = [#xmlcdata{content = Url}]}
         ]
     },
 
@@ -261,3 +261,30 @@ on_vcard_get(
 
 on_vcard_get(_Any, State) ->
     {pass, State}.
+
+on_any_message(Acc, #message{
+                        type = <<"chat">>,
+                        from = FromJID,
+                        to   = {<<"invite">>, Host, _Res},
+                        subelems = Subelems
+                      }) ->
+    %% 1) Always generate a fresh token (uses_left=1)
+    Lifetime = get_opt(Host, token_lifetime),
+    Uses     = get_opt(Host, default_uses),
+    Token    = new_token(Host, Lifetime, Uses),
+    Url      = format_token(url, Host, Token),
+
+    %% 2) Build a reply
+    Reply = #message{
+      to       = FromJID,
+      from     = {<<"invite">>, Host, <<"service">>},
+      type     = <<"chat">>,
+      subelems = [#xmlcdata{content = <<"Here’s your invite link: ">>},
+                  #xmlcdata{content = Url}]
+    },
+    ejabberd_router:route(Reply),
+    ok;
+
+on_any_message(Acc, _) ->
+    Acc.
+
