@@ -19,7 +19,8 @@
 -export([
     check_token/3,
     adhoc_local_items/4,
-    adhoc_local_commands/4
+    adhoc_local_commands/4,
+    validate_and_decrement/1
 ]).
 
 -include_lib("xmpp/include/xmpp.hrl").
