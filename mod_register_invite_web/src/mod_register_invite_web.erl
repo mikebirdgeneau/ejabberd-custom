@@ -130,11 +130,16 @@ css() ->
     end.
 
 index_page(Lang) ->
-    HeadEls = [ ejabberd_web:meta(), ?XCT(<<"title">>, ?T("XMPP Account Registration")),
-               ?XA(<<"link">>, [{<<"href">>, <<"register.css">>}, {<<"rel">>, <<"stylesheet">>}])],
-    Els = [?XACT(<<"h1">>, [{<<"class">>, <<"title">>}], ?T("XMPP Account Registration")),
-           ?XE(<<"ul">>, [?XE(<<"li">>, [?ACT(<<"new/?token=TOKEN">>, ?T("Register via Invite"))])])],
-    {200, [{<<"Content-Type">>, <<"text/html">>}], ejabberd_web:make_xhtml(HeadEls, Els)}.
+  HeadEls = [ 
+             ?XAE(<<"meta">>,
+                  [{<<"http-equiv">>, <<"Content-Type">>},
+                   {<<"content">>,     <<"text/html; charset=utf-8">>}],
+                  []),
+             ?XCT(<<"title">>, ?T("XMPP Account Registration")),
+             ?XA(<<"link">>, [{<<"href">>, <<"register.css">>}, {<<"rel">>, <<"stylesheet">>}])],
+  Els = [?XACT(<<"h1">>, [{<<"class">>, <<"title">>}], ?T("XMPP Account Registration")),
+         ?XE(<<"ul">>, [?XE(<<"li">>, [?ACT(<<"new/?token=TOKEN">>, ?T("Register via Invite"))])])],
+  {200, [{<<"Content-Type">>, <<"text/html">>}], ejabberd_web:make_xhtml(HeadEls, Els)}.
 
 
 %%%----------------------------------------------------------------------
@@ -152,78 +157,82 @@ form_new_get(Host, Lang, IP) ->
     end.
 
 form_new_get2(Host, Lang, CaptchaEls) ->
-    HeadEls = [ ejabberd_web:meta(),
-	       ?XCT(<<"title">>,
-		    ?T("Register an XMPP account")),
-	       ?XA(<<"link">>,
-		   [{<<"href">>, <<"../register.css">>},
-		    {<<"type">>, <<"text/css">>},
-		    {<<"rel">>, <<"stylesheet">>}])],
-    Els = [?XACT(<<"h1">>,
-		 [{<<"class">>, <<"title">>},
-		  {<<"style">>, <<"text-align:center;">>}],
-		 ?T("Register an XMPP account")),
-	   ?XCT(<<"p">>,
-		?T("This page allows to register an XMPP "
-		   "account in this XMPP server. Your "
-		   "JID (Jabber ID) will be of the "
-		   "form: username@server. Please read carefully "
-		   "the instructions to fill correctly the "
-		   "fields.")),
-	   ?XAE(<<"form">>,
-		[{<<"action">>, <<"">>}, {<<"method">>, <<"post">>}],
-		[?XE(<<"ol">>,
-		     ([?XE(<<"li">>,
-			   [?CT(?T("Username:")), ?C(<<" ">>),
-			    ?INPUTS(<<"text">>, <<"username">>, <<"">>,
-				    <<"20">>),
-			    ?BR,
-			    ?XE(<<"ul">>,
-				[?XCT(<<"li">>,
-				      ?T("This is case insensitive: macbeth is "
-					 "the same that MacBeth and Macbeth.")),
-				 ?XC(<<"li">>,
-				     <<(translate:translate(Lang, ?T("Characters not allowed:")))/binary,
-				       " \" & ' / : < > @ ">>)])]),
-		       ?XE(<<"li">>,
-			   [?CT(?T("Server:")), ?C(<<" ">>),
-			    ?INPUTS(<<"text">>, <<"host">>, Host, <<"20">>)]),
-		       ?XE(<<"li">>,
-			   [?CT(?T("Password:")), ?C(<<" ">>),
-			    ?INPUTS(<<"password">>, <<"password">>, <<"">>,
-				    <<"20">>),
-			    ?BR,
-			    ?XE(<<"ul">>,
-				[?XCT(<<"li">>,
-				      ?T("Don't tell your password to anybody, "
-					 "not even the administrators of the XMPP "
-					 "server.")),
-				 ?XCT(<<"li">>,
-				      ?T("You can later change your password using "
-					 "an XMPP client.")),
-				 ?XCT(<<"li">>,
-				      ?T("Some XMPP clients can store your password "
-					 "in the computer, but you should do this only "
-					 "in your personal computer for safety reasons.")),
-				 ?XCT(<<"li">>,
-				      ?T("Memorize your password, or write it "
-					 "in a paper placed in a safe place. In "
-					 "XMPP there isn't an automated way "
-					 "to recover your password if you forget "
-					 "it."))])]),
-		       ?XE(<<"li">>,
-			   [?CT(?T("Password Verification:")), ?C(<<" ">>),
-			    ?INPUTS(<<"password">>, <<"password2">>, <<"">>,
-				    <<"20">>)])]
-			++
-			CaptchaEls ++
-			  [?XE(<<"li">>,
-			       [?INPUTT(<<"submit">>, <<"register">>,
-					?T("Register"))])]))])],
-    {200,
-     [{<<"Server">>, <<"ejabberd">>},
-      {<<"Content-Type">>, <<"text/html">>}],
-     ejabberd_web:make_xhtml(HeadEls, Els)}.
+  HeadEls = [ 
+             ?XAE(<<"meta">>,
+                  [{<<"http-equiv">>, <<"Content-Type">>},
+                   {<<"content">>,     <<"text/html; charset=utf-8">>}],
+                  []),
+             ?XCT(<<"title">>,
+                  ?T("Register an XMPP account")),
+             ?XA(<<"link">>,
+                 [{<<"href">>, <<"../register.css">>},
+                  {<<"type">>, <<"text/css">>},
+                  {<<"rel">>, <<"stylesheet">>}])],
+  Els = [?XACT(<<"h1">>,
+               [{<<"class">>, <<"title">>},
+                {<<"style">>, <<"text-align:center;">>}],
+               ?T("Register an XMPP account")),
+         ?XCT(<<"p">>,
+              ?T("This page allows to register an XMPP "
+                 "account in this XMPP server. Your "
+                 "JID (Jabber ID) will be of the "
+                 "form: username@server. Please read carefully "
+                 "the instructions to fill correctly the "
+                 "fields.")),
+         ?XAE(<<"form">>,
+              [{<<"action">>, <<"">>}, {<<"method">>, <<"post">>}],
+              [?XE(<<"ol">>,
+                   ([?XE(<<"li">>,
+                         [?CT(?T("Username:")), ?C(<<" ">>),
+                          ?INPUTS(<<"text">>, <<"username">>, <<"">>,
+                                  <<"20">>),
+                          ?BR,
+                          ?XE(<<"ul">>,
+                              [?XCT(<<"li">>,
+                                    ?T("This is case insensitive: macbeth is "
+                                       "the same that MacBeth and Macbeth.")),
+                               ?XC(<<"li">>,
+                                   <<(translate:translate(Lang, ?T("Characters not allowed:")))/binary,
+                                     " \" & ' / : < > @ ">>)])]),
+                     ?XE(<<"li">>,
+                         [?CT(?T("Server:")), ?C(<<" ">>),
+                          ?INPUTS(<<"text">>, <<"host">>, Host, <<"20">>)]),
+                     ?XE(<<"li">>,
+                         [?CT(?T("Password:")), ?C(<<" ">>),
+                          ?INPUTS(<<"password">>, <<"password">>, <<"">>,
+                                  <<"20">>),
+                          ?BR,
+                          ?XE(<<"ul">>,
+                              [?XCT(<<"li">>,
+                                    ?T("Don't tell your password to anybody, "
+                                       "not even the administrators of the XMPP "
+                                       "server.")),
+                               ?XCT(<<"li">>,
+                                    ?T("You can later change your password using "
+                                       "an XMPP client.")),
+                               ?XCT(<<"li">>,
+                                    ?T("Some XMPP clients can store your password "
+                                       "in the computer, but you should do this only "
+                                       "in your personal computer for safety reasons.")),
+                               ?XCT(<<"li">>,
+                                    ?T("Memorize your password, or write it "
+                                       "in a paper placed in a safe place. In "
+                                       "XMPP there isn't an automated way "
+                                       "to recover your password if you forget "
+                                       "it."))])]),
+                     ?XE(<<"li">>,
+                         [?CT(?T("Password Verification:")), ?C(<<" ">>),
+                          ?INPUTS(<<"password">>, <<"password2">>, <<"">>,
+                                  <<"20">>)])]
+                    ++
+                    CaptchaEls ++
+                    [?XE(<<"li">>,
+                         [?INPUTT(<<"submit">>, <<"register">>,
+                                  ?T("Register"))])]))])],
+  {200,
+   [{<<"Server">>, <<"ejabberd">>},
+    {<<"Content-Type">>, <<"text/html">>}],
+   ejabberd_web:make_xhtml(HeadEls, Els)}.
 
 %% Copied from mod_register.erl
 %% Function copied from ejabberd_logger_h.erl and customized
@@ -299,45 +308,49 @@ build_captcha_li_list2(Lang, IP) ->
 %%%----------------------------------------------------------------------
 
 form_changepass_get(Host, Lang) ->
-    HeadEls = [ ejabberd_web:meta(),
-	       ?XCT(<<"title">>, ?T("Change Password")),
-	       ?XA(<<"link">>,
-		   [{<<"href">>, <<"../register.css">>},
-		    {<<"type">>, <<"text/css">>},
-		    {<<"rel">>, <<"stylesheet">>}])],
-    Els = [?XACT(<<"h1">>,
-		 [{<<"class">>, <<"title">>},
-		  {<<"style">>, <<"text-align:center;">>}],
-		 ?T("Change Password")),
-	   ?XAE(<<"form">>,
-		[{<<"action">>, <<"">>}, {<<"method">>, <<"post">>}],
-		[?XE(<<"ol">>,
-		     [?XE(<<"li">>,
-			  [?CT(?T("Username:")), ?C(<<" ">>),
-			   ?INPUTS(<<"text">>, <<"username">>, <<"">>,
-				   <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?CT(?T("Server:")), ?C(<<" ">>),
-			   ?INPUTS(<<"text">>, <<"host">>, Host, <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?CT(?T("Old Password:")), ?C(<<" ">>),
-			   ?INPUTS(<<"password">>, <<"passwordold">>, <<"">>,
-				   <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?CT(?T("New Password:")), ?C(<<" ">>),
-			   ?INPUTS(<<"password">>, <<"password">>, <<"">>,
-				   <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?CT(?T("Password Verification:")), ?C(<<" ">>),
-			   ?INPUTS(<<"password">>, <<"password2">>, <<"">>,
-				   <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?INPUTT(<<"submit">>, <<"changepass">>,
-				   ?T("Change Password"))])])])],
-    {200,
-     [{<<"Server">>, <<"ejabberd">>},
-      {<<"Content-Type">>, <<"text/html">>}],
-     ejabberd_web:make_xhtml(HeadEls, Els)}.
+  HeadEls = [ 
+             ?XAE(<<"meta">>,
+                  [{<<"http-equiv">>, <<"Content-Type">>},
+                   {<<"content">>,     <<"text/html; charset=utf-8">>}],
+                  []),
+             ?XCT(<<"title">>, ?T("Change Password")),
+             ?XA(<<"link">>,
+                 [{<<"href">>, <<"../register.css">>},
+                  {<<"type">>, <<"text/css">>},
+                  {<<"rel">>, <<"stylesheet">>}])],
+  Els = [?XACT(<<"h1">>,
+               [{<<"class">>, <<"title">>},
+                {<<"style">>, <<"text-align:center;">>}],
+               ?T("Change Password")),
+         ?XAE(<<"form">>,
+              [{<<"action">>, <<"">>}, {<<"method">>, <<"post">>}],
+              [?XE(<<"ol">>,
+                   [?XE(<<"li">>,
+                        [?CT(?T("Username:")), ?C(<<" ">>),
+                         ?INPUTS(<<"text">>, <<"username">>, <<"">>,
+                                 <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?CT(?T("Server:")), ?C(<<" ">>),
+                         ?INPUTS(<<"text">>, <<"host">>, Host, <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?CT(?T("Old Password:")), ?C(<<" ">>),
+                         ?INPUTS(<<"password">>, <<"passwordold">>, <<"">>,
+                                 <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?CT(?T("New Password:")), ?C(<<" ">>),
+                         ?INPUTS(<<"password">>, <<"password">>, <<"">>,
+                                 <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?CT(?T("Password Verification:")), ?C(<<" ">>),
+                         ?INPUTS(<<"password">>, <<"password2">>, <<"">>,
+                                 <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?INPUTT(<<"submit">>, <<"changepass">>,
+                                 ?T("Change Password"))])])])],
+  {200,
+   [{<<"Server">>, <<"ejabberd">>},
+    {<<"Content-Type">>, <<"text/html">>}],
+   ejabberd_web:make_xhtml(HeadEls, Els)}.
 
 %%%----------------------------------------------------------------------
 %%% Formulary change password POST
@@ -406,41 +419,45 @@ check_password(Username, Host, Password) ->
 %%%----------------------------------------------------------------------
 
 form_del_get(Host, Lang) ->
-    HeadEls = [ ejabberd_web:meta(),
-	       ?XCT(<<"title">>,
-		    ?T("Unregister an XMPP account")),
-	       ?XA(<<"link">>,
-		   [{<<"href">>, <<"../register.css">>},
-		    {<<"type">>, <<"text/css">>},
-		    {<<"rel">>, <<"stylesheet">>}])],
-    Els = [?XACT(<<"h1">>,
-		 [{<<"class">>, <<"title">>},
-		  {<<"style">>, <<"text-align:center;">>}],
-		 ?T("Unregister an XMPP account")),
-	   ?XCT(<<"p">>,
-		?T("This page allows to unregister an XMPP "
-		   "account in this XMPP server.")),
-	   ?XAE(<<"form">>,
-		[{<<"action">>, <<"">>}, {<<"method">>, <<"post">>}],
-		[?XE(<<"ol">>,
-		     [?XE(<<"li">>,
-			  [?CT(?T("Username:")), ?C(<<" ">>),
-			   ?INPUTS(<<"text">>, <<"username">>, <<"">>,
-				   <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?CT(?T("Server:")), ?C(<<" ">>),
-			   ?INPUTS(<<"text">>, <<"host">>, Host, <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?CT(?T("Password:")), ?C(<<" ">>),
-			   ?INPUTS(<<"password">>, <<"password">>, <<"">>,
-				   <<"20">>)]),
-		      ?XE(<<"li">>,
-			  [?INPUTT(<<"submit">>, <<"unregister">>,
-				   ?T("Unregister"))])])])],
-    {200,
-     [{<<"Server">>, <<"ejabberd">>},
-      {<<"Content-Type">>, <<"text/html">>}],
-     ejabberd_web:make_xhtml(HeadEls, Els)}.
+  HeadEls = [ 
+             ?XAE(<<"meta">>,
+                  [{<<"http-equiv">>, <<"Content-Type">>},
+                   {<<"content">>,     <<"text/html; charset=utf-8">>}],
+                  []),
+             ?XCT(<<"title">>,
+                  ?T("Unregister an XMPP account")),
+             ?XA(<<"link">>,
+                 [{<<"href">>, <<"../register.css">>},
+                  {<<"type">>, <<"text/css">>},
+                  {<<"rel">>, <<"stylesheet">>}])],
+  Els = [?XACT(<<"h1">>,
+               [{<<"class">>, <<"title">>},
+                {<<"style">>, <<"text-align:center;">>}],
+               ?T("Unregister an XMPP account")),
+         ?XCT(<<"p">>,
+              ?T("This page allows to unregister an XMPP "
+                 "account in this XMPP server.")),
+         ?XAE(<<"form">>,
+              [{<<"action">>, <<"">>}, {<<"method">>, <<"post">>}],
+              [?XE(<<"ol">>,
+                   [?XE(<<"li">>,
+                        [?CT(?T("Username:")), ?C(<<" ">>),
+                         ?INPUTS(<<"text">>, <<"username">>, <<"">>,
+                                 <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?CT(?T("Server:")), ?C(<<" ">>),
+                         ?INPUTS(<<"text">>, <<"host">>, Host, <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?CT(?T("Password:")), ?C(<<" ">>),
+                         ?INPUTS(<<"password">>, <<"password">>, <<"">>,
+                                 <<"20">>)]),
+                    ?XE(<<"li">>,
+                        [?INPUTT(<<"submit">>, <<"unregister">>,
+                                 ?T("Unregister"))])])])],
+  {200,
+   [{<<"Server">>, <<"ejabberd">>},
+    {<<"Content-Type">>, <<"text/html">>}],
+   ejabberd_web:make_xhtml(HeadEls, Els)}.
 
 %% @spec(Username, Host, Password, Ip) -> {success, ok, {Username, Host, Password} |
 %%                                    {success, exists, {Username, Host, Password}} |
