@@ -2,12 +2,11 @@
 %%% @doc  Invite‑only in‑band registration via web (HTTP) for ejabberd
 %%%-------------------------------------------------------------------
 -module(mod_register_invite_web).
-
 -behaviour(gen_mod).
+-include("logger.hrl").
 
 -export([start/2, stop/1, reload/3, process/2, mod_options/1, depends/2, mod_doc/0]).
 
--include("logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
 -include_lib("ejabberd/include/ejabberd_http.hrl").
 -include_lib("ejabberd/include/ejabberd_web_admin.hrl").

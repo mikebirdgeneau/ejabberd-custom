@@ -3,6 +3,7 @@
 %%%---------------------------------------------------------------------
 -module(mod_register_invite).
 -behaviour(gen_mod).
+-include("logger.hrl").
 
 %% API callbacks -------------------------------------------------------
 -export([
@@ -21,7 +22,6 @@
     adhoc_local_commands/4
 ]).
 
--include("logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
 
 -record(invite_token, {
