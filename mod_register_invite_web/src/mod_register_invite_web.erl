@@ -154,7 +154,7 @@ form_new_get(Host, Lang, IP) ->
     end.
 
 form_new_get2(Host, Lang, CaptchaEls) ->
-    HeadEls = [ ejabberd_web:meta(),
+    HeadEls = [ meta(),
 	       ?XCT(<<"title">>,
 		    ?T("Register an XMPP account")),
 	       ?XA(<<"link">>,
