@@ -106,7 +106,7 @@ handle_new_post(Token, Q, Lang, IP) ->
       ok -> 
         case form_new_post(Q, IP) of
           {success, ok, {Username, Host, _Pass}} -> 
-            Body = <<"Your XMPP account ~s@~s has been created">>,
+            Body = <<"Your XMPP account has been created">>,
             {200, [{<<"Content-Type">>, <<"text/html; charset=utf-8">>}], Body};
           {error, Reason} -> 
             ErrorText = get_error_text({error, Reason}, Lang),
