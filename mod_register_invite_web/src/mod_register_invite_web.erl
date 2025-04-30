@@ -87,10 +87,14 @@ invalid_token() ->
 %%%===================================================================
 handle_new_get(Token, Host, Lang, IP) ->
     ?INFO_MSG("HTTP GET /register/new?token=~p from ~p", [Token, IP]),
-    case validate_token(Token) of
-        ok -> form_new_get(Host, Lang, IP);
-      _  -> ?WARNING_MSG("Invalid or expired token access on web: ~s from ~p", [Token, IP]),
-            invalid_token()
+    case mod_register_invite:peek_token(Token) of
+      ok -> form_new_get(Token, Host, Lang, IP);
+      expired -> ?INFO_MSG("Token Expired"),
+                 invalid_token(expired);
+      exhausted -> ?INFO_MSG("Token Exhausted"),
+                   invalid_token(exhausted);
+      invalid -> ?INFO_MSG("Token Invalid"),
+                 invalid_token(invalid)
     end.
 
 %%%===================================================================
@@ -146,17 +150,24 @@ index_page(Lang) ->
 %%% Formulary new account GET
 %%%----------------------------------------------------------------------
 
-form_new_get(Host, Lang, IP) ->
+form_new_get(Token, Host, Lang, IP) ->
     try build_captcha_li_list(Lang, IP) of
 	CaptchaEls ->
-	    form_new_get2(Host, Lang, CaptchaEls)
+	    form_new_get2(Token, Host, Lang, CaptchaEls)
 	catch
 	    throw:Result ->
 		?DEBUG("Unexpected result when creating a captcha: ~p", [Result]),
 		ejabberd_web:error(not_allowed)
     end.
 
-form_new_get2(Host, Lang, CaptchaEls) ->
+form_new_get2(Token, Host, Lang, CaptchaEls) ->
+  TokenInput = ?XAE(<<"input">>,
+       [
+         {<<"type">>,  <<"hidden">>},
+         {<<"name">>,  <<"token">>},
+         {<<"value">>, Token}
+       ],
+       []),
   HeadEls = [ 
              ?XAE(<<"meta">>,
                   [{<<"http-equiv">>, <<"Content-Type">>},
@@ -181,7 +192,8 @@ form_new_get2(Host, Lang, CaptchaEls) ->
                  "fields.")),
          ?XAE(<<"form">>,
               [{<<"action">>, <<"">>}, {<<"method">>, <<"post">>}],
-              [?XE(<<"ol">>,
+              [TokenInput,
+               ?XE(<<"ol">>,
                    ([?XE(<<"li">>,
                          [?CT(?T("Username:")), ?C(<<" ">>),
                           ?INPUTS(<<"text">>, <<"username">>, <<"">>,

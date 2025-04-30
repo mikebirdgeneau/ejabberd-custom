@@ -20,7 +20,8 @@
     check_token/3,
     adhoc_local_items/4,
     adhoc_local_commands/4,
-    validate_and_decrement/1
+    validate_and_decrement/1,
+    peek_token/1
 ]).
 
 -include_lib("xmpp/include/xmpp.hrl").
@@ -99,6 +100,23 @@ extract_token_from_password(Packet) ->
         {0,_} -> binary:part(Pass, byte_size(Prefix), byte_size(Pass)-byte_size(Prefix));
         nomatch -> <<>>
     end.
+
+peek_token(Token) ->
+    Fun = fun() ->
+        case mnesia:read(invite_token, Token, read) of
+          [#invite_token{expiry=Exp, uses_left=Uses}] ->
+              Now = erlang:system_time(second),
+              if
+                Exp =< Now     -> expired;
+                Uses =< 0      -> exhausted;
+                true           -> ok
+              end;
+          [] ->
+              invalid
+        end
+    end,
+    {atomic, Res} = mnesia:transaction(Fun),
+    Res.
 
 validate_and_decrement(Token) ->
     Fun = fun() ->
