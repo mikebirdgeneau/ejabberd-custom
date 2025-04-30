@@ -51,7 +51,7 @@ process2([Section], #request{method = 'GET', q = Q, lang = Lang, host = HTTPHost
     case Section of
         <<"new">> ->
             case lists:keyfind(<<"token">>, 1, Q) of
-                {_, Token} -> handle_new_get(Token, Host, Lang, IP);
+                {_, Token} -> handle_new_get(Token, Host, _Lang, IP);
                 false       -> missing_token()
             end;
         <<"delete">> -> form_del_get(Host, Lang);
@@ -62,7 +62,7 @@ process2([Section], #request{method = 'GET', q = Q, lang = Lang, host = HTTPHost
 %% POST handlers
 process2([<<"new">>], #request{method = 'POST', q = Q, lang = Lang, ip = {IP,_P}}) ->
     case lists:keyfind(<<"token">>, 1, Q) of
-        {_, Token} -> handle_new_post(Token, Q, Lang, IP);
+        {_, Token} -> handle_new_post(Token, Q, _Lang, IP);
         false      -> missing_token()
     end;
 
@@ -113,7 +113,7 @@ validate_token(Token) ->
         expired -> expired;
         invalid -> invalid;
         exhausted -> exhausted;
-        _ -> ?ERROR_MSG("Unexpected result from validate_and_decrement: ~p",[Other]),
+        Other -> ?ERROR_MSG("Unexpected result from validate_and_decrement: ~p",[Other]),
              invalid
     end.
 
