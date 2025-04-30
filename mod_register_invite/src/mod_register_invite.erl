@@ -53,7 +53,7 @@ start(Host, _Opts) ->
     ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
     ejabberd_hooks:add(iq_get,               Host, ?MODULE, on_vcard_get,         100),
-    ejabberd_hooks:add(filter_packet,        Host, ?MODULE, on_any_message,       50).
+    ejabberd_hooks:add(message,        Host, ?MODULE, on_any_message,       50),
     ok.
 
 stop(Host) ->
@@ -61,7 +61,7 @@ stop(Host) ->
     ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
     ejabberd_hooks:delete(iq_get,               Host, ?MODULE, on_vcard_get,         100),
-    ejabberd_hooks:add(filter_packet,           Host, ?MODULE, on_any_message,       50).
+    ejabberd_hooks:delete(message,              Host, ?MODULE, on_any_message,       50),
     ok.
 
 depends(_Host, _Opts) ->
@@ -265,19 +265,13 @@ on_vcard_get(
 on_vcard_get(_Any, State) ->
     {pass, State}.
 
-on_any_message(Acc, #message{
-                        type = <<"chat">>,
-                        from = FromJID,
-                        to   = {<<"invite">>, Host, _Res},
-                        subelems = Subelems
-                      }) ->
-    %% 1) Always generate a fresh token (uses_left=1)
-    Lifetime = get_opt(Host, token_lifetime),
-    Uses     = get_opt(Host, default_uses),
-    Token    = new_token(Host, Lifetime, Uses),
-    Url      = format_token(url, Host, Token),
 
-    %% 2) Build a reply
+on_any_message(
+  #message{type = <<"chat">>, from=FromJID, to={<<"invite">>,Host,_}},
+  State
+) ->
+    Token = new_token(Host, get_opt(Host, token_lifetime), get_opt(Host, default_uses)),
+    Url   = format_token(url, Host, Token),
     Reply = #message{
       to       = FromJID,
       from     = {<<"invite">>, Host, <<"service">>},
@@ -286,8 +280,7 @@ on_any_message(Acc, #message{
                   #xmlcdata{content = Url}]
     },
     ejabberd_router:route(Reply),
-    ok;
-
-on_any_message(Acc, _) ->
-    Acc.
+    {stop, State};   %% drop the original message
+on_any_message(_Msg, State) ->
+    {pass, State}.
 
