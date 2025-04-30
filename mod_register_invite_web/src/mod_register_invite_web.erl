@@ -144,16 +144,21 @@ css() ->
     end.
 
 index_page(Lang) ->
-  HeadEls = [ 
-             ?XAE(<<"meta">>,
-                  [{<<"http-equiv">>, <<"Content-Type">>},
-                   {<<"content">>,     <<"text/html; charset=utf-8">>}],
-                  []),
-             ?XCT(<<"title">>, ?T("XMPP Account Registration")),
-             ?XA(<<"link">>, [{<<"href">>, <<"register.css">>}, {<<"rel">>, <<"stylesheet">>}])],
-  Els = [?XACT(<<"h1">>, [{<<"class">>, <<"title">>}], ?T("XMPP Account Registration")),
-         ?XE(<<"ul">>, [?XE(<<"li">>, [?ACT(<<"new/?token=TOKEN">>, ?T("Register via Invite"))])])],
-  {200, [{<<"Content-Type">>, <<"text/html">>}], ejabberd_web:make_xhtml(HeadEls, Els)}.
+    HeadEls = [
+        ?XAE(<<"meta">>, [{<<"http-equiv">>, <<"Content-Type">>},
+                           {<<"content">>, <<"text/html; charset=utf-8">>}], []),
+        ?XCT(<<"title">>, ?T("XMPP Account Registration")),
+        ?XA(<<"link">>, [{<<"href">>, <<"register.css">>}, {<<"rel">>, <<"stylesheet">>}])
+    ],
+    Els = [
+        ?XACT(<<"h1">>, [{<<"class">>, <<"title">>}], ?T("XMPP Account Registration")),
+        ?XCT(<<"p">>, ?T("Registration is by invitation only. Please obtain an invite to register.")),
+        ?XE(<<"ul">>, [
+            ?XE(<<"li">>, [?ACT(<<"change_password">>, ?T("Change Password"))]),
+            ?XE(<<"li">>, [?ACT(<<"delete">>, ?T("Delete Account"))])
+        ])
+    ],
+    {200, [{<<"Content-Type">>, <<"text/html">>}], ejabberd_web:make_xhtml(HeadEls, Els)}.
 
 
 %%%----------------------------------------------------------------------
