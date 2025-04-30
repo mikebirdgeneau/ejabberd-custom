@@ -36,7 +36,16 @@
 %%% Lifecycle
 %%%===================================================================
 start(Host, _Opts) ->
-    ensure_table(),
+    case mnesia:table_info(invite_token, attributes) of
+        ['token','host','expiry','uses_left'] ->
+            ok;
+        _ ->
+            mnesia:create_table(invite_token, [
+              {attributes, record_info(fields, invite_token)},
+              {disc_copies, [node()]},
+              {type, set}
+            ])
+    end,
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands,  50),
@@ -190,9 +199,4 @@ get_opt(Host, Key) ->
         empty                        -> proplists:get_value(Key, mod_options(Host))
     end.
 
-ensure_table() ->
-    mnesia:create_table(invite_token,
-        [{disc_copies, [node()]}, {attributes, record_info(fields, invite_token)}, {type, set}]
-    ),
-    ok.
 
