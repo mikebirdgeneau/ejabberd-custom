@@ -556,6 +556,9 @@ unregister_account(Username, Host, Password) ->
 %%% Error texts
 %%%----------------------------------------------------------------------
 
+get_error_text(Error, _Lang) ->
+    get_error_text(Error).
+
 get_error_text({error, captcha_non_valid}) ->
     ?T("The captcha you entered is wrong");
 get_error_text({error, exists}) ->
