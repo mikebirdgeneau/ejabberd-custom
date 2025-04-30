@@ -224,69 +224,89 @@ get_opt(Host, Key) ->
         empty                        -> proplists:get_value(Key, mod_options(Host))
     end.
 
+%%--------------------------------------------------------------------
+%% Handle incoming vCard‐GET for invite@… and reply with our URL vCard
+%%--------------------------------------------------------------------
 on_vcard_get(
-    { IQ = #iq{
-          type   = get,
-          id     = Id,
-          from   = FromJID,
-          to     = {<<"invite">>, Host, _},
-          sub_el = [#xmlel{
-                      name     = <<"vCard">>,
-                      attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
-                      children = []
-                    }]
-        },
-      _RawXML
-    },
-    State
-) ->
-    Token = new_token(Host,
-                     get_opt(Host, token_lifetime),
-                     get_opt(Host, default_uses)),
-    Url   = format_token(url, Host, Token),
-    VCardElem = #xmlel{
-        name     = <<"vCard">>,
-        attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
-        children = [
-            #xmlel{
-              name     = <<"FN">>,
-              children = [{xmlcdata, <<"Invite Link">>}]
-            },
-            #xmlel{
-              name     = <<"URL">>,
-              children = [{xmlcdata, Url}]
-            }
-        ]
-    },
-    Reply = IQ#iq{
-        type   = result,
-        sub_el = [VCardElem]
-    },
-    ejabberd_router:route(Reply),
-    {stop, State};
-on_vcard_get(_Any, State) ->
+  { IQ = #iq{
+            type    = get,
+            id      = Id,
+            from    = FromJID,
+            to      = {<<"invite">>, Host, _Resource},
+            sub_els = [#xmlel{
+                          name     = <<"vCard">>,
+                          attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
+                          children = []
+                         }]
+           },
+    _RawXML
+  },
+  State
+ ) ->
+  %% Generate token and URL
+  Token     = new_token(Host,
+                        get_opt(Host, token_lifetime),
+                        get_opt(Host, default_uses)),
+  Url       = format_token(url, Host, Token),
+
+  %% Build a minimal vCard response
+  VCardElem = #xmlel{
+                 name     = <<"vCard">>,
+                 attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
+                 children = [
+                             #xmlel{
+                                name     = <<"FN">>,
+                                children = [{xmlcdata, <<"Invite Link">>}]
+                               },
+                             #xmlel{
+                                name     = <<"URL">>,
+                                children = [{xmlcdata, Url}]
+                               }
+                            ]
+                },
+
+  %% Attach it under sub_els and send
+  Reply = IQ#iq{
+            type    = result,
+            sub_els = [VCardElem]
+           },
+  ejabberd_router:route(Reply),
+  {stop, State};
+
+on_vcard_get(_Other, State) ->
     {pass, State}.
 
 
+%%--------------------------------------------------------------------
+%% On any chat message to invite@… send back a fresh invite link
+%%--------------------------------------------------------------------
 on_any_message(
-    #message{type=chat, from=FromJID, to={<<"invite">>, Host, _}},
-    State
-) ->
-    Token = new_token(Host,
-                     get_opt(Host, token_lifetime),
-                     get_opt(Host, default_uses)),
-    Url   = format_token(url, Host, Token),
-    Reply = #message{
-      to      = FromJID,
-      from    = {<<"invite">>, Host, <<"service">>},
-      type    = chat,
-      sub_els = [
-        {xmlcdata, <<"Here’s your invite link: ">>},
-        {xmlcdata, Url}
-      ]
+  #message{
+     type = chat,
+     from = FromJID,
+     to   = {<<"invite">>, Host, _Resource}
     },
-    ejabberd_router:route(Reply),
-    {stop, State};
+  State
+ ) ->
+  %% Generate token and URL
+  Token = new_token(Host,
+                    get_opt(Host, token_lifetime),
+                    get_opt(Host, default_uses)),
+  Url   = format_token(url, Host, Token),
+
+  %% Reply as a chat message with plain text
+  Reply = #message{
+             to      = FromJID,
+             from    = {<<"invite">>, Host, <<"service">>},
+             type    = chat,
+             sub_els = [
+                        {xmlcdata, <<"Here’s your invite link: ">>},
+                        {xmlcdata, Url}
+                       ]
+            },
+  ejabberd_router:route(Reply),
+  {stop, State};
+
 on_any_message(_Msg, State) ->
     {pass, State}.
 
