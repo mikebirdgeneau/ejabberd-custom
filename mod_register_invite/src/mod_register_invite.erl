@@ -95,23 +95,23 @@ validate_and_decrement(Token) ->
         case mnesia:read(invite_token, Token, write) of
             [#invite_token{expiry = Exp, uses_left = Uses} = Rec] ->
                 Now = erlang:system_time(second),
-                ?INFO("Validating token=~s now=~p expiry=~p uses_left=~p", [Token, Now, Exp, Uses]),
+                ?INFO_MSG("Validating token=~s now=~p expiry=~p uses_left=~p", [Token, Now, Exp, Uses]),
                 if Exp > Now ->
                        case Uses of
                            0 -> exhausted;
                            _ -> mnesia:write(Rec#invite_token{uses_left = Uses - 1}),
-                                ?INFO("Token=~s used, new uses_left=~p",[Token,Uses-1]),
+                                ?INFO_MSG("Token=~s used, new uses_left=~p",[Token,Uses-1]),
                                 ok
                        end;
                    true -> expired
                 end;
-            [] -> ?WARN("Token=~s not found in Mnesia", [Token]), 
+            [] -> ?WARNING_MSG("Token=~s not found in Mnesia", [Token]), 
                   invalid
 
         end
     end,
     {atomic, Res} = mnesia:transaction(Fun),
-    ?INFO("Validation result for token=~s -> ~p", [Token, Res]),
+    ?INFO_MSG("Validation result for token=~s -> ~p", [Token, Res]),
     Res.
 
 %%%===================================================================
@@ -138,7 +138,7 @@ adhoc_local_commands(
 ) ->
     Uses  = proplists:get_value(default_uses, mod_options(Host)),
     Life  = proplists:get_value(token_lifetime, mod_options(Host)),
-    ?INFO("Generating invite for host=~p users=~p lifetime=~p", [Host, Uses, Life]),
+    ?INFO_MSG("Generating invite for host=~p users=~p lifetime=~p", [Host, Uses, Life]),
     Url   = generate_invite_url(Host, Uses, Life),
     %% update & return command record
     Request#adhoc_command{
@@ -168,7 +168,7 @@ new_token(Host, Lifetime, Uses) ->
     Exp      = erlang:system_time(second) + Lifetime,
     Rec      = #invite_token{token = TokenStr, host = Host, expiry = Exp, uses_left = Uses},
     _        = mnesia:transaction(fun() -> mnesia:write(Rec) end),
-    ?INFO("New invite token=~s expires=~p uses_left=~p", [TokenStr, Exp, Uses]),
+    ?INFO_MSG("New invite token=~s expires=~p uses_left=~p", [TokenStr, Exp, Uses]),
     TokenStr.
 
 format_token(url, Host, Token) ->
