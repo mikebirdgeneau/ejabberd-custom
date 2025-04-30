@@ -101,10 +101,20 @@ handle_new_get(Token, Host, Lang, IP) ->
 %%% Invitation-protected registration POST
 %%%===================================================================
 handle_new_post(Token, Q, Lang, IP) ->
-    ?INFO_MSG("HTTP POST /register/new?token=~p form-data=~p from ~p", [Token, Q, IP]),
+    ?INFO_MSG("HTTP POST /register/new?token=~p from ~p", [Token, IP]),
     case validate_token(Token) of
-        ok -> form_new_post(Q, IP);
-        _  -> invalid_token()
+      ok -> 
+        case form_new_post(Q, IP) of
+          {success, ok, {Username, Host, _Pass}} -> 
+            Body = <<"Your XMPP account ~s@~s has been created">>,
+            {200, [{<<"Content-Type">>, <<"text/html; charset=utf-8">>}], Body};
+          {error, Reason} -> 
+            ErrorText = mod_register_invite_web:get_error_text({error, Reason}, Lang),
+            {400, [{<<"Content-Type">>, <<"text/html; charset=utf-8">>}], ErrorText}
+        end;
+      expired -> invalid_token();
+      invalid -> invalid_token();
+      exhausted -> invalid_token();
     end.
 
 validate_token(Token) ->
