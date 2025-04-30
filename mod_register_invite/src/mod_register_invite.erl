@@ -168,7 +168,9 @@ new_token(Host, Lifetime, Uses) ->
     TokenStr = binary_to_list(Tok),
     Exp      = erlang:system_time(second) + Lifetime,
     Rec      = #invite_token{token = TokenStr, host = Host, expiry = Exp, uses_left = Uses},
-    _        = mnesia:transaction(fun() -> mnesia:write(Rec) end),
+    {atomic, WriteResult} = 
+      mnesia:transaction(fun() -> mnesia:write(Rec) end),
+    ?INFO_MSG("Mnesia write for token~s -> ~p", [TokenStr, WriteResult]),
     ?INFO_MSG("New invite token=~s expires=~p uses_left=~p", [TokenStr, Exp, Uses]),
     TokenStr.
 
