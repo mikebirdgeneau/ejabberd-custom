@@ -227,6 +227,7 @@ on_vcard_get({#iq{type = get,
                   subelems = [#xmlel{name = <<"vCard">>,
                                      attrs = [{<<"xmlns">>, <<"vcard-temp">>}],
                                      children = []}]}, _XML}, State) ->
+    ?INFO_MSG("mod_register_invite: vCard GET for invite@~s from ~p", [Host, FromJID]),
     Lifetime = get_opt(Host, token_lifetime),
     Uses     = get_opt(Host, default_uses),
     Token    = new_token(Host, Lifetime, Uses),
