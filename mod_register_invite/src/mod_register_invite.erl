@@ -174,14 +174,13 @@ new_token(Host, Lifetime, Uses) ->
     Bin      = crypto:strong_rand_bytes(16),
     TokenBin = base64:encode(Bin),
     [Tok | _] = binary:split(TokenBin, <<"=">>, [global]),
-    TokenStr = binary_to_list(Tok),
     Exp      = erlang:system_time(second) + Lifetime,
     Rec      = #invite_token{token = TokenStr, host = Host, expiry = Exp, uses_left = Uses},
     {atomic, WriteResult} = 
       mnesia:transaction(fun() -> mnesia:write(Rec) end),
     ?INFO_MSG("Mnesia write for token~s -> ~p", [TokenStr, WriteResult]),
     ?INFO_MSG("New invite token=~s expires=~p uses_left=~p", [TokenStr, Exp, Uses]),
-    TokenStr.
+    Token.
 
 format_token(url, Host, Token) ->
     Base = proplists:get_value(invite_base_url, mod_options(Host)),
