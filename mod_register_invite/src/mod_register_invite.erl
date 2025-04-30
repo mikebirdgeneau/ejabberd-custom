@@ -3,6 +3,7 @@
 %%%---------------------------------------------------------------------
 -module(mod_register_invite).
 -behaviour(gen_mod).
+-behaviour(gen_iq_handler).
 -include("logger.hrl").
 
 %% API callbacks -------------------------------------------------------
@@ -23,7 +24,9 @@
     on_vcard_get/2,
     on_any_message/2,
     validate_and_decrement/1,
-    peek_token/1
+    peek_token/1,
+    iq_commands/0,
+    handle_iq/2
 ]).
 
 -include_lib("xmpp/include/xmpp.hrl").
@@ -147,6 +150,14 @@ validate_and_decrement(Token) ->
     {atomic, Res} = mnesia:transaction(Fun),
     ?INFO_MSG("Validation result for token=~s -> ~p", [Token, Res]),
     Res.
+
+
+iq_commands() ->
+    [{<<"vCard">>, <<"vcard-temp">>, handle_iq}].
+
+%% Delegate into your existing on_vcard_get/2
+handle_iq({IQ, _RawXML}, State) ->
+    on_vcard_get({IQ, []}, State).
 
 %%%===================================================================
 %%% Ad-hoc discovery
@@ -282,7 +293,6 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 on_any_message(
   #message{
-     type = chat,
      from = FromJID,
      to   = {<<"invite">>, Host, _Resource}
     },
