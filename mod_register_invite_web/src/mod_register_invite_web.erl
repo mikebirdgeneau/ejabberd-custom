@@ -6,7 +6,6 @@
 -include("logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
 -include_lib("ejabberd/include/ejabberd_http.hrl").
--include_lib("ejabberd/include/ejabberd_web.hrl").
 -include_lib("ejabberd/include/ejabberd_web_admin.hrl").
 -include_lib("ejabberd/include/translate.hrl").
 
@@ -153,7 +152,7 @@ form_new_get(Host, Lang, IP) ->
     end.
 
 form_new_get2(Host, Lang, CaptchaEls) ->
-    HeadEls = [ meta(),
+    HeadEls = [ ejabberd_web:meta(),
 	       ?XCT(<<"title">>,
 		    ?T("Register an XMPP account")),
 	       ?XA(<<"link">>,
