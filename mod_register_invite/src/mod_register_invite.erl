@@ -51,14 +51,17 @@ start(Host, _Opts) ->
     end,
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
-    ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands,  50),
-    ejabberd_hooks:add(iq_get, Host, ?MODULE, on_vcard_get,  100),
+    ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+    ejabberd_hooks:add(iq_get,               Host, ?MODULE, on_vcard_get,         100),
+    ejabberd_hooks:add(filter_packet,        Host, ?MODULE, on_any_message,       50).
     ok.
 
 stop(Host) ->
     ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
-    ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands,  50),
+    ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+    ejabberd_hooks:delete(iq_get,               Host, ?MODULE, on_vcard_get,         100),
+    ejabberd_hooks:add(filter_packet,           Host, ?MODULE, on_any_message,       50).
     ok.
 
 depends(_Host, _Opts) ->
