@@ -298,32 +298,39 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
+
 on_any_message(
-  #message{
-     type = Type,
-     from = FromJID,
-     to   = {<<"invite">>, Host, _Resource}
+    Msg = #message{
+      type = Type,
+      from = FromJID,
+      to   = #jid{user     = <<"invite">>,
+                  server   = Host,
+                  resource = _}
     },
-  State
- ) ->
-  ?INFO_MSG("mod_register_invite: on_any_message fired – host=~p from=~p type=~p", [Host, FromJID, Type]),
-  Token = new_token(Host,
-                    get_opt(Host, token_lifetime),
-                    get_opt(Host, default_uses)),
-  Url   = format_token(url, Host, Token),
+    State
+) ->
+    ?INFO_MSG("mod_register_invite: on_any_message fired – host=~p from=~p type=~p",
+              [Host, FromJID, Type]),
 
-  Reply = #message{
-             to      = FromJID,
-             from    = {<<"invite">>, Host, <<"service">>},
-             type    = chat,
-             sub_els = [
-                        {xmlcdata, <<"Here’s your invite link: ">>},
-                        {xmlcdata, Url}
-                       ]
+    %% Generate token + URL
+    Token = new_token(Host,
+                      get_opt(Host, token_lifetime),
+                      get_opt(Host, default_uses)),
+    Url   = format_token(url, Host, Token),
+
+    %% Reply as a chat (or normal) message
+    Reply = #message{
+              to      = FromJID,
+              from    = #jid{user="invite", server=Host, resource = <<"service">>},
+              type    = chat,
+              sub_els = [
+                {xmlcdata, <<"Here’s your invite link: ">>},
+                {xmlcdata, Url}
+              ]
             },
-  ejabberd_router:route(Reply),
-  {stop, State};
+    ejabberd_router:route(Reply),
+    {stop, State};
 
-on_any_message(_Msg, State) ->
+on_any_message(_Other, State) ->
     {pass, State}.
 
