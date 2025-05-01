@@ -295,12 +295,13 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 on_any_message(
   #message{
+     type = Type,
      from = FromJID,
      to   = {<<"invite">>, Host, _Resource}
     },
   State
  ) ->
-  ?INFO_MSG("mod_register_invite: on_any_message fired – host=~p from=~p type=~p", [Host, FromJID, Msg#message.type]),
+  ?INFO_MSG("mod_register_invite: on_any_message fired – host=~p from=~p type=~p", [Host, FromJID, Type]),
   Token = new_token(Host,
                     get_opt(Host, token_lifetime),
                     get_opt(Host, default_uses)),
