@@ -55,7 +55,7 @@ start(Host, _Opts) ->
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-    ejabberd_hooks:add(iq_get,               Host, ?MODULE, on_vcard_get,         100),
+    ejabberd_hooks:add(iq,               Host, ?MODULE, handle_iq,         100),
     ejabberd_hooks:add(message,        Host, ?MODULE, on_any_message,       50),
     ok.
 
@@ -298,13 +298,11 @@ on_any_message(
     },
   State
  ) ->
-  %% Generate token and URL
   Token = new_token(Host,
                     get_opt(Host, token_lifetime),
                     get_opt(Host, default_uses)),
   Url   = format_token(url, Host, Token),
 
-  %% Reply as a chat message with plain text
   Reply = #message{
              to      = FromJID,
              from    = {<<"invite">>, Host, <<"service">>},
