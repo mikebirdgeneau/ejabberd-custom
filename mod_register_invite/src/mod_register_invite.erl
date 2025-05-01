@@ -63,7 +63,7 @@ stop(Host) ->
     ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-    ejabberd_hooks:delete(iq_get,               Host, ?MODULE, on_vcard_get,         100),
+    ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
     ejabberd_hooks:delete(message,              Host, ?MODULE, on_any_message,       50),
     ok.
 
@@ -157,6 +157,7 @@ iq_commands() ->
 
 %% Delegate into your existing on_vcard_get/2
 handle_iq({IQ, _RawXML}, State) ->
+    ?INFO_MSG("mod_register_invite: handle_iq fired - from=~p to=~p, id=~p", [From, To, Id])
     on_vcard_get({IQ, []}, State).
 
 %%%===================================================================
@@ -254,6 +255,7 @@ on_vcard_get(
   },
   State
  ) ->
+  ?INFO_MSG("mod_register_invite: on_vcard_get fired – host=~p from=~p id=~p", [Host, FromJID, Id]),
   %% Generate token and URL
   Token     = new_token(Host,
                         get_opt(Host, token_lifetime),
@@ -298,6 +300,7 @@ on_any_message(
     },
   State
  ) ->
+  ?INFO_MSG("mod_register_invite: on_any_message fired – host=~p from=~p type=~p", [Host, FromJID, Msg#message.type]),
   Token = new_token(Host,
                     get_opt(Host, token_lifetime),
                     get_opt(Host, default_uses)),
