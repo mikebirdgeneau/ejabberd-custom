@@ -156,9 +156,17 @@ iq_commands() ->
     [{<<"vCard">>, <<"vcard-temp">>, handle_iq}].
 
 %% Delegate into your existing on_vcard_get/2
-handle_iq({IQ, _RawXML}, State) ->
-    on_vcard_get({IQ, []}, State).
-
+handle_iq(
+  {IQ = #iq{
+           from = FromJID,
+           to = ToJID,
+          }, 
+   RawXML
+  }, 
+  State
+ ) ->
+  ?INFO_MSG("mod_register_invite: handle_iq fired – from=~p to=~p", [FromJID, ToJID]),
+    on_vcard_get({IQ, RawXML}, State).
 %%%===================================================================
 %%% Ad-hoc discovery
 %%%===================================================================
@@ -238,52 +246,50 @@ get_opt(Host, Key) ->
 %%--------------------------------------------------------------------
 %% Handle incoming vCard‐GET for invite@… and reply with our URL vCard
 %%--------------------------------------------------------------------
+
 on_vcard_get(
-  { IQ = #iq{
-            type    = get,
-            id      = Id,
-            from    = FromJID,
-            to      = {<<"invite">>, Host, _Resource},
-            sub_els = [#xmlel{
-                          name     = <<"vCard">>,
-                          attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
-                          children = []
-                         }]
-           },
-    _RawXML
-  },
-  State
- ) ->
-  ?INFO_MSG("mod_register_invite: on_vcard_get fired – host=~p from=~p id=~p", [Host, FromJID, Id]),
-  %% Generate token and URL
-  Token     = new_token(Host,
-                        get_opt(Host, token_lifetime),
-                        get_opt(Host, default_uses)),
-  Url       = format_token(url, Host, Token),
+    { #iq{
+         type = get,
+         id   = Id,
+         from = FromJID,
+         to   = #jid{user     = <<"invite">>,
+                     server   = Host,
+                     resource = _Resource}
+      } = IQ,
+      _RawXML
+    },
+    State
+) ->
+    ?INFO_MSG("mod_register_invite: on_vcard_get fired – host=~p from=~p id=~p",
+              [Host, FromJID, Id]),
 
-  %% Build a minimal vCard response
-  VCardElem = #xmlel{
-                 name     = <<"vCard">>,
-                 attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
-                 children = [
-                             #xmlel{
-                                name     = <<"FN">>,
-                                children = [{xmlcdata, <<"Invite Link">>}]
-                               },
-                             #xmlel{
-                                name     = <<"URL">>,
-                                children = [{xmlcdata, Url}]
-                               }
-                            ]
+    %% Generate token + URL
+    Token = new_token(Host,
+                      get_opt(Host, token_lifetime),
+                      get_opt(Host, default_uses)),
+    Url   = format_token(url, Host, Token),
+
+    %% Build and send vCard reply
+    VCardElem = #xmlel{
+                  name     = <<"vCard">>,
+                  attrs    = [{<<"xmlns">>, <<"vcard-temp">>}],
+                  children = [
+                    #xmlel{
+                      name     = <<"FN">>,
+                      children = [{xmlcdata, <<"Invite Link">>}]
+                    },
+                    #xmlel{
+                      name     = <<"URL">>,
+                      children = [{xmlcdata, Url}]
+                    }
+                  ]
                 },
-
-  %% Attach it under sub_els and send
-  Reply = IQ#iq{
-            type    = result,
-            sub_els = [VCardElem]
-           },
-  ejabberd_router:route(Reply),
-  {stop, State};
+    Reply = IQ#iq{
+              type    = result,
+              sub_els = [VCardElem]
+            },
+    ejabberd_router:route(Reply),
+    {stop, State};
 
 on_vcard_get(_Other, State) ->
     {pass, State}.
