@@ -157,7 +157,7 @@ iq_commands() ->
 
 %% Delegate into your existing on_vcard_get/2
 handle_iq({IQ, _RawXML}, State) ->
-    ?INFO_MSG("mod_register_invite: handle_iq fired - from=~p to=~p, id=~p", [From, To, Id])
+    ?INFO_MSG("mod_register_invite: handle_iq fired - from=~p to=~p, id=~p", [From, To, Id]),
     on_vcard_get({IQ, []}, State).
 
 %%%===================================================================
