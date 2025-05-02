@@ -332,7 +332,6 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 
 on_invite_message(Packet) ->
-    ?INFO_MSG("Debug: on_invite_message fired"),
     try
         Type = xmpp:get_type(Packet),
         From = xmpp:get_from(Packet),
