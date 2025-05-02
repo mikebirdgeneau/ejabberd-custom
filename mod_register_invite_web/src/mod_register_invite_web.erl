@@ -334,7 +334,7 @@ build_captcha_li_list2(Lang, IP) ->
 %%% Formulary change password GET
 %%%----------------------------------------------------------------------
 
-form_changepass_get(Host, _Lang) ->
+form_changepass_get(Host, Lang) ->
   HeadEls = [ 
              ?XAE(<<"meta">>,
                   [{<<"http-equiv">>, <<"Content-Type">>},
@@ -445,7 +445,7 @@ check_password(Username, Host, Password) ->
 %%% Formulary delete account GET
 %%%----------------------------------------------------------------------
 
-form_del_get(Host, _Lang) ->
+form_del_get(Host, Lang) ->
   HeadEls = [ 
              ?XAE(<<"meta">>,
                   [{<<"http-equiv">>, <<"Content-Type">>},
