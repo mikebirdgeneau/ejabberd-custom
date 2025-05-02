@@ -26,7 +26,6 @@
     on_any_message/2,
     validate_and_decrement/1,
     peek_token/1,
-    %%iq_commands/0,
     handle_iq/2
 ]).
 
@@ -158,12 +157,13 @@ validate_and_decrement(Token) ->
 %%    [{<<"vCard">>, <<"vcard-temp">>, handle_iq}].
 
 handle_iq(#iq{type = get, sub_els = [#xmlel{attrs = [{<<"xmlns">>, ?NS_VCARD} | _]}]} = IQ, _From) ->
-    Host = xmpp:get_to(IQ)#jid.server,
-    Token = new_token(Host,
+  To = xmpp:get_to(IQ),
+  Host = To#jid.server,
+  Token = new_token(Host,
     get_opt(Host, token_lifetime),
-      get_opt(Host, default_uses)),
-    Url   = format_token(url, Host, Token),
-    ?INFO_MSG("Generating token for vCard: ~s",[Token]),
+    get_opt(Host, default_uses)),
+  Url   = format_token(url, Host, Token),
+  ?INFO_MSG("Generating token for vCard: ~s",[Token]),
 
     VCard = #xmlel{name = <<"vCard">>,
                   attrs = [{<<"xmlns">>, ?NS_VCARD}],
