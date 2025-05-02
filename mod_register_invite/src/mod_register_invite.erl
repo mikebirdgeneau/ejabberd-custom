@@ -23,7 +23,7 @@
     adhoc_local_items/4,
     adhoc_local_commands/4,
     on_vcard_get/2,
-    on_invite_message/2,
+    on_invite_message/1,
     validate_and_decrement/1,
     peek_token/1,
     handle_iq/2
@@ -331,7 +331,7 @@ on_vcard_get(_Other, State) ->
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
 
-on_invite_message(Packet, State) ->
+on_invite_message(Packet) ->
   ?INFO_MSG("Debug: on_invite_message fired with packet: ~p", [Packet]),
   From = xmpp:get_from(Packet),
   To = xmpp:get_to(Packet),
@@ -353,9 +353,9 @@ on_invite_message(Packet, State) ->
         body = Body
       },
       ejabberd_router:route(ResponseMessage),
-      {Packet, State};
+      Packet;
     _ ->
       %% For all other message types, log and pass through
       ?INFO_MSG("Received unsupported type of packet: ~p", [Packet]),
-      {Packet, State}
+      Packet
   end.
