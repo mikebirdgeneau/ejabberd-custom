@@ -333,30 +333,28 @@ on_vcard_get(_Other, State) ->
 
 on_invite_message(Packet) ->
   ?INFO_MSG("Debug: on_invite_message fired with packet: ~p", [Packet]),
+  From = xmpp:get_from(Packet),
+  To = xmpp:get_to(Packet),
+  Type = xmpp:get_type(Packet),
+  Host = To#jid.server,
 
-  case Packet of
-    #message{to = #jid{luser = <<"invite">>}} ->
-      % This is an invite message, handle it
-      Host = Packet#message.to#jid.server,
-      ?INFO_MSG("Received direct message to invite@~s: ~p", [Host, Packet]),
-      From = Packet#message.from,
+  case {To#jid.luser, Type} of
+    {<<"invite">>, <<"chat">>} ->
       Token = new_token(Host,
         get_opt(Host, token_lifetime),
         get_opt(Host, default_uses)),
-      Url   = format_token(url, Host, Token),
-      To = From,
-      Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
-      Msg = #message{
-        from = jid:make(<<"invite">>, Packet#message.to#jid.lserver, <<>>),
-        to = To,
-        body = Body,
-        type = normal},
-      ?INFO_MSG("Invitation URL: ~s", [Url]),
-      ejabberd_router:route(Msg),
-      Packet;
-
+      Url = format_token(url, Host, Token),
+      ?INFO_MSG("Received 'chat' message to invite@~s. Generated URL: ~s", [Host, Url]),
+      Body = <<"Your invitation link for registration: ", Url/binary>>,
+      ResponseMessage = #message{
+        from = jid:make(<<"invite">>, Host, <<>>),
+        to = From,
+        type = <<"chat">>,
+        body = Body
+      },
+      ejabberd_router:route(ResponseMessage);
     _ ->
-      % Not an invite message
-      ?INFO_MSG("Received non-invite packet: ~p", [Packet]),
+      %% For all other message types, log and pass through
+      ?INFO_MSG("Received unsupported type of packet: ~p", [Packet]),
       Packet
   end.
