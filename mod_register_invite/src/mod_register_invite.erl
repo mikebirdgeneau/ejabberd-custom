@@ -41,7 +41,8 @@
 %%% Lifecycle
 %%%===================================================================
 
-start(Host, _Opts) ->
+start(Host, Opts) ->
+  ?INFO_MSG("Starting mod_register_invite on ~p with options: ~p", [Host, Opts]),
   %% Check if table exists first, then check attributes if it does
   Tables = mnesia:system_info(tables),
   case lists:member(invite_token, Tables) of
@@ -64,9 +65,8 @@ start(Host, _Opts) ->
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
   ejabberd_hooks:add(user_receive_packet, Host, ?MODULE, on_invite_message, 50),
-  gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq),
-  ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message}),
-
+  gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
+  ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message, []}),
   ok.
 
 %% Helper function to create the table
@@ -175,32 +175,27 @@ validate_and_decrement(Token) ->
 %%iq_commands() ->
 %%    [{<<"vCard">>, <<"vcard-temp">>, handle_iq}].
 
-handle_iq(#iq{type = get, sub_els = [#xmlel{attrs = [{<<"xmlns">>, ?NS_VCARD} | _]}]} = IQ, _From) ->
+handle_iq(#iq{type = get, to = #jid{luser= <<"invite">>}} = IQ, _From) ->
+  ?INFO_MSG("Handing vCard request: ~p", [IQ]),
+
   To = xmpp:get_to(IQ),
   Host = To#jid.server,
   Token = new_token(Host,
     get_opt(Host, token_lifetime),
     get_opt(Host, default_uses)),
   Url   = format_token(url, Host, Token),
-  ?INFO_MSG("Generating token for vCard: ~s",[Token]),
+  ?INFO_MSG("Generated token for vCard: ~s",[Token]),
 
-    VCard = #xmlel{name = <<"vCard">>,
-                  attrs = [{<<"xmlns">>, ?NS_VCARD}],
-                  children = [
-                      #xmlel{name = <<"FN">>,
-                             attrs = [],
-                             children = [{xmlcdata, <<"Registration Service">>}]},
-                      #xmlel{name = <<"URL">>,
-                             attrs = [],
-                             children = [{xmlcdata, Url}]},
-                      #xmlel{name = <<"DESC">>,
-                             attrs = [],
-                             children = [{xmlcdata, <<"Service for inviting new users to register">>}]}
-                  ]},
-
-    IQ#iq{type = result, sub_els = VCard};
+  VCard = #vcard_temp{
+    fn = <<"Invitation Service">>,
+    nickname = <<"Invite Bot">>,
+    desc = <<"Use this service to request registration tokens">>,
+    url = <<Url>>
+  },
+  xmpp:make_iq_result(IQ, VCard);
 
 handle_iq(IQ, _From) ->
+    ?INFO_MSG("Rejecting unhandled IQ: ~p", [IQ]),
     xmpp:make_error(IQ, xmpp:err_service_unavailable()).
 
 
@@ -367,6 +362,7 @@ on_invite_message(
             },
     ejabberd_router:route(Reply),
     {stop, State};
+
 
 on_invite_message(_Other, State) ->
     {pass, State}.
