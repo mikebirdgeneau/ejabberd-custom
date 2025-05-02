@@ -332,8 +332,6 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 
 on_invite_message(Packet) ->
-    ?INFO_MSG("Debug: on_invite_message fired with packet: ~p", [Packet]),
-
     try
         case Packet of
             {{message, _ID, Type, _Lang, From, To, _}, _Els} when is_tuple(From), is_tuple(To) ->
@@ -348,7 +346,7 @@ on_invite_message(Packet) ->
                 handle_message(FromJID, ToJID, Type, Packet);
 
             _ ->
-                ?DEBUG("Ignoring unrecognized packet structure: ~p", [Packet])
+                ?INFO_MSG("Ignoring unrecognized packet structure: ~p", [Packet])
         end
     catch
         Error:Reason:Stack ->
