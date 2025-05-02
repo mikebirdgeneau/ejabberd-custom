@@ -337,7 +337,7 @@ on_invite_message(
   ?INFO_MSG("Debug: on_invite_message: ~p",[Packet]),
   Host = Packet#message.to#jid.server,
   ?INFO_MSG("Received direct message to invite@~s: ~p", [Host, Packet]),
-  From = xmpp:get_from(Packet#message),
+  From = Packet#message.from,
   Token = new_token(Host,
     get_opt(Host, token_lifetime),
     get_opt(Host, default_uses)),
