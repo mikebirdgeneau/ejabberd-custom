@@ -43,7 +43,8 @@
 
 start(Host, _Opts) ->
   %% Check if table exists first, then check attributes if it does
-  case mnesia:table_exists(invite_token) of
+  Tables = mnesia:system_info(tables),
+  case lists:member(invite_token, Tables) of
     true ->
       case mnesia:table_info(invite_token, attributes) of
         ['token','host','expiry','uses_left'] ->
