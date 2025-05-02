@@ -23,7 +23,7 @@
     adhoc_local_items/4,
     adhoc_local_commands/4,
     on_vcard_get/2,
-    on_invite_message/1,
+    on_invite_message/3,
     validate_and_decrement/1,
     peek_token/1,
     handle_iq/2
@@ -64,8 +64,8 @@ start(Host, Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+  ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 0),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
-  ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message, []}),
   ok.
 
 %% Helper function to create the table
@@ -81,8 +81,8 @@ stop(Host) ->
   ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
   ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
+  ejabberd_hooks:delete(filter_packet, Host, ?MODULE, on_invite_message, 0),
   gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_VCARD),
-  ejabberd_router:unregister_route(<<"invite">>, Host),
 ok.
 
 depends(_Host, _Opts) ->
@@ -329,36 +329,32 @@ on_vcard_get(_Other, State) ->
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
 
-on_invite_message(Packet) ->
-  ?INFO_MSG("Received direct message to invite@HOST: ~p", [Packet]),
-  try
-    % Add proper pattern matching to handle all possible message types
-    case Packet of
-      #message{type = error} ->
-        % Handle error message type
-        ?ERROR_MSG("Received error message: ~p", [Packet]),
-        ok;
-      #message{} = Msg ->
-        ?INFO_MSG("Received message: ~p", [Msg]),
-        % Regular message handling with proper checks
-        From = xmpp:get_from(Msg),
-        Host = Packet#message.to#jid.server,
-        Token = new_token(Host,
-          get_opt(Host, token_lifetime),
-          get_opt(Host, default_uses)),
-        Url   = format_token(url, Host, Token),
-        To = From,
-        Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
+on_invite_message(
+    Packet = #message{to = #jid{luser = <<"invite">>} = Msg},
+    _C2SState,
+    _JID
+) ->
+  Host = Packet#message.to#jid.server,
+  ?INFO_MSG("Received direct message to invite@~s: ~p", [Host, Packet]),
+  From = xmpp:get_from(Msg),
+  Token = new_token(Host,
+    get_opt(Host, token_lifetime),
+    get_opt(Host, default_uses)),
+  Url   = format_token(url, Host, Token),
+  To = From,
+  Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
   Msg = #message{
     from = jid:make(<<"invite">>, Packet#message.to#jid.lserver, <<>>),
     to = To,
     body = Body,
     type = normal},
+  ?INFO_MSG("Invitation URL: ~s", [URL]),
   ejabberd_router:route(Msg),
-        ok
-    end
-  catch
-    E:R:ST ->
-      ?ERROR_MSG("Error processing invite message: ~p:~p~n~p", [E, R, ST]),
-      ok
-  end.
+  {stop, Packet};
+on_invite_message(
+    Packet,
+    C2SState,
+    JID
+) ->
+  ?INFO_MSG("Recieved non-matching packet: ~p",[Packet]),
+  {pass, Packet, C2SState, JID}.
