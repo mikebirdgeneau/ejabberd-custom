@@ -23,7 +23,7 @@
     adhoc_local_items/4,
     adhoc_local_commands/4,
     on_vcard_get/2,
-    on_any_message/2,
+    on_invite_message/2,
     validate_and_decrement/1,
     peek_token/1,
     handle_iq/2
@@ -63,6 +63,7 @@ start(Host, _Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+  ejabberd_hooks:add(user_receive_packet, Host, ?MODULE, on_invite_message, 50),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq),
   ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message}),
 
@@ -77,13 +78,14 @@ create_invite_token_table() ->
   ]).
 
 stop(Host) ->
-    ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
-    ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
-    ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-    ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
-    gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_REGISTER),
-    ejabberd_router:unregister_route(<<"invite">>, Host),
-    ok.
+  ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
+  ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
+  ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+  ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
+  ejabberd_hooks:delete(user_receive_packet, Host, ?MODULE, on_invite_message, 50),
+  gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_VCARD),
+  ejabberd_router:unregister_route(<<"invite">>, Host),
+ok.
 
 depends(_Host, _Opts) ->
     [{mod_adhoc, hard}].
@@ -334,7 +336,7 @@ on_vcard_get(_Other, State) ->
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
 
-on_any_message(
+on_invite_message(
     _Msg = #message{
       type = Type,
       from = FromJID,
@@ -344,7 +346,7 @@ on_any_message(
     },
     State
 ) ->
-    ?INFO_MSG("mod_register_invite: on_any_message fired – host=~p from=~p type=~p",
+    ?INFO_MSG("mod_register_invite: on_invite_message fired – host=~p from=~p type=~p",
               [Host, FromJID, Type]),
 
     %% Generate token + URL
@@ -366,6 +368,6 @@ on_any_message(
     ejabberd_router:route(Reply),
     {stop, State};
 
-on_any_message(_Other, State) ->
+on_invite_message(_Other, State) ->
     {pass, State}.
 
