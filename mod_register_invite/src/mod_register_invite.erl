@@ -348,7 +348,7 @@ on_invite_message(
     to = To,
     body = Body,
     type = normal},
-  ?INFO_MSG("Invitation URL: ~s", [URL]),
+  ?INFO_MSG("Invitation URL: ~s", [Url]),
   ejabberd_router:route(Msg),
   {stop, Packet};
 on_invite_message(
