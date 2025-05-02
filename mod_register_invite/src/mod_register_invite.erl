@@ -23,7 +23,7 @@
     adhoc_local_items/4,
     adhoc_local_commands/4,
     on_vcard_get/2,
-    on_invite_message/1,
+    on_invite_message/2,
     validate_and_decrement/1,
     peek_token/1,
     handle_iq/2
@@ -64,7 +64,7 @@ start(Host, Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-  Result = ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 10),
+  Result = ejabberd_hooks:add(user_send_packet, Host, ?MODULE, on_invite_message, 10),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
   %% Debugging Feedback.
   ?INFO_MSG("Hook loaded: ~p",[Result]),
@@ -83,7 +83,7 @@ stop(Host) ->
   ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
   ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
-  ejabberd_hooks:delete(filter_packet, Host, ?MODULE, on_invite_message, 10),
+  ejabberd_hooks:delete(user_send_packet, Host, ?MODULE, on_invite_message, 10),
   gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_VCARD),
 ok.
 
@@ -331,7 +331,7 @@ on_vcard_get(_Other, State) ->
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
 
-on_invite_message(Packet) ->
+on_invite_message(Packet, State) ->
   ?INFO_MSG("Debug: on_invite_message fired with packet: ~p", [Packet]),
   From = xmpp:get_from(Packet),
   To = xmpp:get_to(Packet),
@@ -352,9 +352,10 @@ on_invite_message(Packet) ->
         type = <<"chat">>,
         body = Body
       },
-      ejabberd_router:route(ResponseMessage);
+      ejabberd_router:route(ResponseMessage),
+      {Packet, State};
     _ ->
       %% For all other message types, log and pass through
       ?INFO_MSG("Received unsupported type of packet: ~p", [Packet]),
-      Packet
+      {Packet, State}
   end.
