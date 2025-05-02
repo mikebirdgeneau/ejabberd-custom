@@ -143,7 +143,7 @@ css() ->
         {error, _Why}    -> error
     end.
 
-index_page(_Lang) ->
+index_page(Lang) ->
     HeadEls = [
         ?XAE(<<"meta">>, [{<<"http-equiv">>, <<"Content-Type">>},
                            {<<"content">>, <<"text/html; charset=utf-8">>}], []),
