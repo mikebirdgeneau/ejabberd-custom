@@ -64,7 +64,7 @@ start(Host, Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-  Result = ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 50),
+  Result = ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 10),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
   %% Debugging Feedback.
   ?INFO_MSG("Hook loaded: ~p",[Result]),
@@ -83,7 +83,7 @@ stop(Host) ->
   ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
   ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
-  ejabberd_hooks:delete(filter_packet, Host, ?MODULE, on_invite_message, 50),
+  ejabberd_hooks:delete(filter_packet, Host, ?MODULE, on_invite_message, 10),
   gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_VCARD),
 ok.
 
