@@ -332,30 +332,37 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 
 on_invite_message(Packet) ->
-  ?INFO_MSG("Debug: on_invite_message fired with packet: ~p", [Packet]),
-  From = xmpp:get_from(Packet),
-  To = xmpp:get_to(Packet),
-  Type = xmpp:get_type(Packet),
-  Host = To#jid.server,
+    ?INFO_MSG("Debug: on_invite_message fired"),
+    try
+        Type = xmpp:get_type(Packet),
+        From = xmpp:get_from(Packet),
+        To = xmpp:get_to(Packet),
+        Name = xmpp:get_name(Packet),
 
-  case {To#jid.luser, Type} of
-    {<<"invite">>, <<"chat">>} ->
-      Token = new_token(Host,
-        get_opt(Host, token_lifetime),
-        get_opt(Host, default_uses)),
-      Url = format_token(url, Host, Token),
-      ?INFO_MSG("Received 'chat' message to invite@~s. Generated URL: ~s", [Host, Url]),
-      Body = <<"Your invitation link for registration: ", Url/binary>>,
-      ResponseMessage = #message{
-        from = jid:make(<<"invite">>, Host, <<>>),
-        to = From,
-        type = <<"chat">>,
-        body = Body
-      },
-      ejabberd_router:route(ResponseMessage),
-      Packet;
-    _ ->
-      %% For all other message types, log and pass through
-      ?INFO_MSG("Received unsupported type of packet: ~p", [Packet]),
-      Packet
-  end.
+        case {To#jid.luser, Type, Name} of
+            {<<"invite">>, <<"chat">>, message} ->
+                Host = To#jid.server,
+                ?INFO_MSG("Processing chat message to invite@~s", [Host]),
+                Token = new_token(Host,
+                    get_opt(Host, token_lifetime),
+                    get_opt(Host, default_uses)),
+                Url = format_token(url, Host, Token),
+                ?INFO_MSG("Generated URL: ~s", [Url]),
+                Body = <<"Your invitation link for registration: ", Url/binary>>,
+                ResponseMessage = #message{
+                    from = jid:make(<<"invite">>, Host, <<>>),
+                    to = From,
+                    type = <<"chat">>,
+                    body = Body
+                },
+                ejabberd_router:route(ResponseMessage);
+            _ ->
+                ?DEBUG("Ignoring packet of type ~p to ~p with name ~p",
+                       [Type, To#jid.luser, Name])
+        end
+    catch
+        Error:Reason:Stack ->
+            ?ERROR_MSG("Error processing packet in mod_register_invite: ~p:~p~n~p",
+                       [Error, Reason, Stack])
+    end,
+    Packet.
