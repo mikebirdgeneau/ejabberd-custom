@@ -64,8 +64,10 @@ start(Host, Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-  ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 50),
+  Result = ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 50),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
+  %% Debugging Feedback.
+  ?INFO_MSG("Hook loaded: ~p",[Result]),
   ok.
 
 %% Helper function to create the table
@@ -92,7 +94,7 @@ depends(_Host, _Opts) ->
 mod_options(Host) ->
     DefaultBase = <<"https://", Host/binary, "/register/new">>,
     [{token_lifetime, 86400},    %% seconds
-     {default_uses,   1},
+     {default_uses,  1},
      {invite_base_url, DefaultBase}
     ].
 
@@ -329,29 +331,32 @@ on_vcard_get(_Other, State) ->
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
 
-on_invite_message(
-    Packet = #message{to = #jid{luser = <<"invite">>}}
-) ->
-  ?INFO_MSG("Debug: on_invite_message: ~p",[Packet]),
-  Host = Packet#message.to#jid.server,
-  ?INFO_MSG("Received direct message to invite@~s: ~p", [Host, Packet]),
-  From = Packet#message.from,
-  Token = new_token(Host,
-    get_opt(Host, token_lifetime),
-    get_opt(Host, default_uses)),
-  Url   = format_token(url, Host, Token),
-  To = From,
-  Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
-  Msg = #message{
-    from = jid:make(<<"invite">>, Packet#message.to#jid.lserver, <<>>),
-    to = To,
-    body = Body,
-    type = normal},
-  ?INFO_MSG("Invitation URL: ~s", [Url]),
-  ejabberd_router:route(Msg),
-  Packet;
-on_invite_message(
-    Packet
-) ->
-  ?INFO_MSG("Recieved non-matching packet: ~p",[Packet]),
-  Packet.
+on_invite_message(Packet) ->
+  ?INFO_MSG("Debug: on_invite_message fired with packet: ~p", [Packet]),
+
+  case Packet of
+    #message{to = #jid{luser = <<"invite">>}} ->
+      % This is an invite message, handle it
+      Host = Packet#message.to#jid.server,
+      ?INFO_MSG("Received direct message to invite@~s: ~p", [Host, Packet]),
+      From = Packet#message.from,
+      Token = new_token(Host,
+        get_opt(Host, token_lifetime),
+        get_opt(Host, default_uses)),
+      Url   = format_token(url, Host, Token),
+      To = From,
+      Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
+      Msg = #message{
+        from = jid:make(<<"invite">>, Packet#message.to#jid.lserver, <<>>),
+        to = To,
+        body = Body,
+        type = normal},
+      ?INFO_MSG("Invitation URL: ~s", [Url]),
+      ejabberd_router:route(Msg),
+      Packet;
+
+    _ ->
+      % Not an invite message
+      ?INFO_MSG("Received non-invite packet: ~p", [Packet]),
+      Packet
+  end.
