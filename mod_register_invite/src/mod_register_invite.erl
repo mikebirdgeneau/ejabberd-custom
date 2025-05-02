@@ -23,6 +23,7 @@
     adhoc_local_items/4,
     adhoc_local_commands/4,
     on_vcard_get/2,
+    on_invite_message/1,
     on_invite_message/2,
     validate_and_decrement/1,
     peek_token/1,
@@ -330,6 +331,27 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
+
+on_invite_message(Packet) ->
+  ?INFO_MSG("Received direct message to invite@HOST: ~p", [Packet]),
+  From = xmpp:get_from(Packet),
+  Host = Packet#message.to#jid.server,
+  Token = new_token(Host,
+                      get_opt(Host, token_lifetime),
+                      get_opt(Host, default_uses)),
+  Url   = format_token(url, Host, Token),
+
+  To = From,
+  Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
+  Msg = #message{
+    from = jid:make(<<"invite">>, Packet#message.to#jid.lserver, <<>>),
+    to = To,
+    body = Body,
+    type = normal},
+  ejabberd_router:route(Msg),
+  ok.
+
+
 
 on_invite_message(
     _Msg = #message{
