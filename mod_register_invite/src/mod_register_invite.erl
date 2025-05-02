@@ -332,36 +332,55 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 
 on_invite_message(Packet) ->
-    try
-        Type = xmpp:get_type(Packet),
-        From = xmpp:get_from(Packet),
-        To = xmpp:get_to(Packet),
-        Name = xmpp:get_name(Packet),
+    ?INFO_MSG("Debug: on_invite_message fired with packet: ~p", [Packet]),
 
-        case {To#jid.luser, Type, Name} of
-            {<<"invite">>, <<"chat">>, message} ->
-                Host = To#jid.server,
-                ?INFO_MSG("Processing chat message to invite@~s", [Host]),
-                Token = new_token(Host,
-                    get_opt(Host, token_lifetime),
-                    get_opt(Host, default_uses)),
-                Url = format_token(url, Host, Token),
-                ?INFO_MSG("Generated URL: ~s", [Url]),
-                Body = <<"Your invitation link for registration: ", Url/binary>>,
-                ResponseMessage = #message{
-                    from = jid:make(<<"invite">>, Host, <<>>),
-                    to = From,
-                    type = <<"chat">>,
-                    body = Body
-                },
-                ejabberd_router:route(ResponseMessage);
+    try
+        case Packet of
+            {{message, _ID, Type, _Lang, From, To, _}, _Els} when is_tuple(From), is_tuple(To) ->
+                FromJID = jid:make(From#jid.luser, From#jid.lserver, From#jid.lresource),
+                ToJID = jid:make(To#jid.luser, To#jid.lserver, To#jid.lresource),
+                handle_message(FromJID, ToJID, Type, Packet);
+
+            {{message, _ID, Type, _Lang, From, To, _, _}, _Els} when is_tuple(From), is_tuple(To) ->
+                % Alternative pattern for message structure with additional element
+                FromJID = jid:make(From#jid.luser, From#jid.lserver, From#jid.lresource),
+                ToJID = jid:make(To#jid.luser, To#jid.lserver, To#jid.lresource),
+                handle_message(FromJID, ToJID, Type, Packet);
+
             _ ->
-                ?DEBUG("Ignoring packet of type ~p to ~p with name ~p",
-                       [Type, To#jid.luser, Name])
+                ?DEBUG("Ignoring unrecognized packet structure: ~p", [Packet])
         end
     catch
         Error:Reason:Stack ->
-            ?ERROR_MSG("Error processing packet in mod_register_invite: ~p:~p~n~p",
-                       [Error, Reason, Stack])
+            ?ERROR_MSG("Error processing packet in mod_register_invite: ~p:~p~n~p~nPacket: ~p",
+                      [Error, Reason, Stack, Packet])
     end,
     Packet.
+
+%% Helper function to handle actual message processing
+handle_message(From, To, <<"chat">>, _Packet) ->
+    case To#jid.luser of
+        <<"invite">> ->
+            Host = To#jid.lserver,
+            ?INFO_MSG("Processing chat message to invite@~s from ~s@~s",
+                     [Host, From#jid.luser, From#jid.lserver]),
+
+            Token = new_token(Host,
+                get_opt(Host, token_lifetime),
+                get_opt(Host, default_uses)),
+            Url = format_token(url, Host, Token),
+            ?INFO_MSG("Generated URL: ~s", [Url]),
+
+            Body = <<"Your invitation link for registration: ", Url/binary>>,
+            ResponseMessage = #message{
+                from = jid:make(<<"invite">>, Host, <<>>),
+                to = From,
+                type = <<"chat">>,
+                body = Body
+            },
+            ejabberd_router:route(ResponseMessage);
+        _ ->
+            ?DEBUG("Ignoring message not sent to invite: ~s", [To#jid.luser])
+    end;
+handle_message(_From, _To, _Type, _Packet) ->
+    ?DEBUG("Ignoring non-chat message type: ~p", [_Type]).
