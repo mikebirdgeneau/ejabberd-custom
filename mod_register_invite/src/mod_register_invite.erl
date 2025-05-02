@@ -40,24 +40,40 @@
 %%%===================================================================
 %%% Lifecycle
 %%%===================================================================
-start(Host, _Opts) ->
-    case mnesia:table_info(invite_token, attributes) of
-        ['token','host','expiry','uses_left'] ->
-            ok;
-        _ ->
-            mnesia:create_table(invite_token, [
-              {attributes, record_info(fields, invite_token)},
-              {disc_copies, [node()]},
-              {type, set}
-            ])
-    end,
-    ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
-    ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
-    ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-    gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq),
-    ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message}),
 
-    ok.
+start(Host, _Opts) ->
+  %% Check if table exists first, then check attributes if it does
+  case mnesia:table_exists(invite_token) of
+    true ->
+      case mnesia:table_info(invite_token, attributes) of
+        ['token','host','expiry','uses_left'] ->
+          ok;
+        _ ->
+          %% Table exists but has wrong structure, recreate it
+          mnesia:delete_table(invite_token),
+          create_invite_token_table()
+      end;
+    false ->
+      %% Table doesn't exist, create it
+      create_invite_token_table()
+  end,
+
+  %% Rest of initialization...
+  ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
+  ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
+  ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
+  gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq),
+  ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message}),
+
+  ok.
+
+%% Helper function to create the table
+create_invite_token_table() ->
+  mnesia:create_table(invite_token, [
+    {attributes, record_info(fields, invite_token)},
+    {disc_copies, [node()]},
+    {type, set}
+  ]).
 
 stop(Host) ->
     ejabberd_hooks:delete(pre_registration,     Host, ?MODULE, check_token,          80),
