@@ -24,7 +24,6 @@
     adhoc_local_commands/4,
     on_vcard_get/2,
     on_invite_message/1,
-    on_invite_message/2,
     validate_and_decrement/1,
     peek_token/1,
     handle_iq/2
@@ -65,7 +64,6 @@ start(Host, Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-  ejabberd_hooks:add(user_receive_packet, Host, ?MODULE, on_invite_message, 50),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
   ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message, []}),
   ok.
@@ -83,7 +81,6 @@ stop(Host) ->
   ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
   ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
-  ejabberd_hooks:delete(user_receive_packet, Host, ?MODULE, on_invite_message, 50),
   gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_VCARD),
   ejabberd_router:unregister_route(<<"invite">>, Host),
 ok.
@@ -350,42 +347,3 @@ on_invite_message(Packet) ->
     type = normal},
   ejabberd_router:route(Msg),
   ok.
-
-
-
-on_invite_message(
-    _Msg = #message{
-      type = Type,
-      from = FromJID,
-      to   = #jid{user     = <<"invite">>,
-                  server   = Host,
-                  resource = _}
-    },
-    State
-) ->
-    ?INFO_MSG("mod_register_invite: on_invite_message fired – host=~p from=~p type=~p",
-              [Host, FromJID, Type]),
-
-    %% Generate token + URL
-    Token = new_token(Host,
-                      get_opt(Host, token_lifetime),
-                      get_opt(Host, default_uses)),
-    Url   = format_token(url, Host, Token),
-
-    %% Reply as a chat (or normal) message
-    Reply = #message{
-              to      = FromJID,
-              from    = #jid{user="invite", server=Host, resource = <<"service">>},
-              type    = chat,
-              sub_els = [
-                {xmlcdata, <<"Here’s your invite link: ">>},
-                {xmlcdata, Url}
-              ]
-            },
-    ejabberd_router:route(Reply),
-    {stop, State};
-
-
-on_invite_message(_Other, State) ->
-    {pass, State}.
-
