@@ -339,6 +339,7 @@ on_invite_message(Packet) ->
         ?ERROR_MSG("Received error message: ~p", [Packet]),
         ok;
       #message{} = Msg ->
+        ?INFO_MSG("Received message: ~p", [Msg]),
         % Regular message handling with proper checks
         From = xmpp:get_from(Msg),
         Host = Packet#message.to#jid.server,
