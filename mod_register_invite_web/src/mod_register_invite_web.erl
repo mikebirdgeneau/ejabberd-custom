@@ -3,7 +3,7 @@
 %%%-------------------------------------------------------------------
 -module(mod_register_invite_web).
 -behaviour(gen_mod).
--include("logger.hrl").
+-include_lib("ejabberd/include/logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
 -include_lib("ejabberd/include/ejabberd_http.hrl").
 -include_lib("ejabberd/include/ejabberd_web_admin.hrl").
@@ -105,7 +105,7 @@ handle_new_post(Token, Q, Lang, IP) ->
     case validate_token(Token) of
       ok -> 
         case form_new_post(Q, IP) of
-          {success, ok, {Username, Host, _Pass}} -> 
+          {success, ok, {_Username, _Host, _Pass}} ->
             Body = <<"Your XMPP account has been created">>,
             {200, [{<<"Content-Type">>, <<"text/html; charset=utf-8">>}], Body};
           {error, Reason} -> 
@@ -143,7 +143,7 @@ css() ->
         {error, _Why}    -> error
     end.
 
-index_page(Lang) ->
+index_page(_Lang) ->
     HeadEls = [
         ?XAE(<<"meta">>, [{<<"http-equiv">>, <<"Content-Type">>},
                            {<<"content">>, <<"text/html; charset=utf-8">>}], []),
@@ -334,7 +334,7 @@ build_captcha_li_list2(Lang, IP) ->
 %%% Formulary change password GET
 %%%----------------------------------------------------------------------
 
-form_changepass_get(Host, Lang) ->
+form_changepass_get(Host, _Lang) ->
   HeadEls = [ 
              ?XAE(<<"meta">>,
                   [{<<"http-equiv">>, <<"Content-Type">>},
@@ -445,7 +445,7 @@ check_password(Username, Host, Password) ->
 %%% Formulary delete account GET
 %%%----------------------------------------------------------------------
 
-form_del_get(Host, Lang) ->
+form_del_get(Host, _Lang) ->
   HeadEls = [ 
              ?XAE(<<"meta">>,
                   [{<<"http-equiv">>, <<"Content-Type">>},

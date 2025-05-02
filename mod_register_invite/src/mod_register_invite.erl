@@ -4,7 +4,8 @@
 -module(mod_register_invite).
 -behaviour(gen_mod).
 -behaviour(gen_iq_handler).
--include("logger.hrl").
+-include_lib("ejabberd/include/logger.hrl").
+-include_lib("xmpp/include/xmpp.hrl").
 
 %% API callbacks -------------------------------------------------------
 -export([
@@ -25,11 +26,10 @@
     on_any_message/2,
     validate_and_decrement/1,
     peek_token/1,
-    iq_commands/0,
+    %%iq_commands/0,
     handle_iq/2
 ]).
 
--include_lib("xmpp/include/xmpp.hrl").
 
 -record(invite_token, {
     token      :: binary(),
@@ -55,8 +55,9 @@ start(Host, _Opts) ->
     ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
     ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-    ejabberd_hooks:add(iq,               Host, ?MODULE, handle_iq,         100),
-    ejabberd_hooks:add(message,        Host, ?MODULE, on_any_message,       50),
+    gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq),
+    ejabberd_router:register_route(<<"invite">>, Host, {apply, ?MODULE, on_invite_message}),
+
     ok.
 
 stop(Host) ->
@@ -64,7 +65,8 @@ stop(Host) ->
     ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
     ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
     ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
-    ejabberd_hooks:delete(message,              Host, ?MODULE, on_any_message,       50),
+    gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_REGISTER),
+    ejabberd_router:unregister_route(<<"invite">>, Host),
     ok.
 
 depends(_Host, _Opts) ->
@@ -152,21 +154,37 @@ validate_and_decrement(Token) ->
     Res.
 
 
-iq_commands() ->
-    [{<<"vCard">>, <<"vcard-temp">>, handle_iq}].
+%%iq_commands() ->
+%%    [{<<"vCard">>, <<"vcard-temp">>, handle_iq}].
 
-%% Delegate into your existing on_vcard_get/2
-handle_iq(
-  {IQ = #iq{
-           from = FromJID,
-           to = ToJID,
-          }, 
-   RawXML
-  }, 
-  State
- ) ->
-  ?INFO_MSG("mod_register_invite: handle_iq fired – from=~p to=~p", [FromJID, ToJID]),
-    on_vcard_get({IQ, RawXML}, State).
+handle_iq(#iq{type = get, sub_els = [#xmlel{attrs = [{<<"xmlns">>, ?NS_VCARD} | _]}]} = IQ, _From) ->
+    Host = xmpp:get_to(IQ)#jid.server,
+    Token = new_token(Host,
+    get_opt(Host, token_lifetime),
+      get_opt(Host, default_uses)),
+    Url   = format_token(url, Host, Token),
+    ?INFO_MSG("Generating token for vCard: ~s",[Token]),
+
+    VCard = #xmlel{name = <<"vCard">>,
+                  attrs = [{<<"xmlns">>, ?NS_VCARD}],
+                  children = [
+                      #xmlel{name = <<"FN">>,
+                             attrs = [],
+                             children = [{xmlcdata, <<"Registration Service">>}]},
+                      #xmlel{name = <<"URL">>,
+                             attrs = [],
+                             children = [{xmlcdata, Url}]},
+                      #xmlel{name = <<"DESC">>,
+                             attrs = [],
+                             children = [{xmlcdata, <<"Service for inviting new users to register">>}]}
+                  ]},
+
+    IQ#iq{type = result, sub_els = VCard};
+
+handle_iq(IQ, _From) ->
+    xmpp:make_error(IQ, xmpp:err_service_unavailable()).
+
+
 %%%===================================================================
 %%% Ad-hoc discovery
 %%%===================================================================
@@ -232,7 +250,7 @@ format_token(url, Host, Token) ->
     iolist_to_binary([Base, "?token=", Token]);
 format_token(raw, _Host, Token) -> Token;
 format_token(qr, Host, Token) ->
-    Png = qrcode:encode(format_token(url, Host, Token)),
+    Png = eqrcode:encode(format_token(url, Host, Token)),
     <<"data:image/png;base64,", (base64:encode(Png))/binary>>.
 
 get_opt(Host, Key) ->
@@ -300,7 +318,7 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 
 on_any_message(
-    Msg = #message{
+    _Msg = #message{
       type = Type,
       from = FromJID,
       to   = #jid{user     = <<"invite">>,
