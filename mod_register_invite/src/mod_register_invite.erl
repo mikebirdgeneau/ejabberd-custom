@@ -331,19 +331,33 @@ on_vcard_get(_Other, State) ->
 
 on_invite_message(Packet) ->
   ?INFO_MSG("Received direct message to invite@HOST: ~p", [Packet]),
-  From = xmpp:get_from(Packet),
-  Host = Packet#message.to#jid.server,
-  Token = new_token(Host,
-                      get_opt(Host, token_lifetime),
-                      get_opt(Host, default_uses)),
-  Url   = format_token(url, Host, Token),
-
-  To = From,
-  Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
+  try
+    % Add proper pattern matching to handle all possible message types
+    case Packet of
+      #message{type = error} ->
+        % Handle error message type
+        ?ERROR_MSG("Received error message: ~p", [Packet]),
+        ok;
+      #message{} = Msg ->
+        % Regular message handling with proper checks
+        From = xmpp:get_from(Msg),
+        Host = Packet#message.to#jid.server,
+        Token = new_token(Host,
+          get_opt(Host, token_lifetime),
+          get_opt(Host, default_uses)),
+        Url   = format_token(url, Host, Token),
+        To = From,
+        Body = <<"Your invitation request has been received. Register using this URL: ", Url/binary>>,
   Msg = #message{
     from = jid:make(<<"invite">>, Packet#message.to#jid.lserver, <<>>),
     to = To,
     body = Body,
     type = normal},
   ejabberd_router:route(Msg),
-  ok.
+        ok
+    end
+  catch
+    E:R:ST ->
+      ?ERROR_MSG("Error processing invite message: ~p:~p~n~p", [E, R, ST]),
+      ok
+  end.
