@@ -23,7 +23,7 @@
     adhoc_local_items/4,
     adhoc_local_commands/4,
     on_vcard_get/2,
-    on_invite_message/3,
+    on_invite_message/1,
     validate_and_decrement/1,
     peek_token/1,
     handle_iq/2
@@ -64,7 +64,7 @@ start(Host, Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-  ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 0),
+  ejabberd_hooks:add(filter_packet, Host, ?MODULE, on_invite_message, 50),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
   ok.
 
@@ -81,7 +81,7 @@ stop(Host) ->
   ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
   ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
-  ejabberd_hooks:delete(filter_packet, Host, ?MODULE, on_invite_message, 0),
+  ejabberd_hooks:delete(filter_packet, Host, ?MODULE, on_invite_message, 50),
   gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_VCARD),
 ok.
 
@@ -330,9 +330,7 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 
 on_invite_message(
-    Packet = #message{to = #jid{luser = <<"invite">>}},
-    _C2SState,
-    _JID
+    Packet = #message{to = #jid{luser = <<"invite">>}}
 ) ->
   ?INFO_MSG("Debug: on_invite_message: ~p",[Packet]),
   Host = Packet#message.to#jid.server,
@@ -351,11 +349,9 @@ on_invite_message(
     type = normal},
   ?INFO_MSG("Invitation URL: ~s", [Url]),
   ejabberd_router:route(Msg),
-  {stop, Packet};
+  Packet;
 on_invite_message(
-    Packet,
-    C2SState,
-    JID
+    Packet
 ) ->
   ?INFO_MSG("Recieved non-matching packet: ~p",[Packet]),
-  {pass, Packet, C2SState, JID}.
+  Packet.
