@@ -373,16 +373,10 @@ on_invite_message(Packet) ->
 is_chat_state_notification(Body, Els) ->
     IsEmptyBody = (Body =:= []) orelse (Body =:= undefined),
 
-    HasChatState = lists:any(fun(El) ->
+   HasChatState = lists:any(fun(El) ->
         case El of
             {xmlel, Name, Attrs, _} ->
                 % Check if element is a chat state notification
-                ChatStates = [<<"composing">>, <<"paused">>, <<"active">>,
-                              <<"inactive">>, <<"gone">>],
-                lists:member(Name, ChatStates) andalso
-                    has_chatstate_xmlns(Attrs);
-            #xmlel{name = Name, attrs = Attrs} ->
-                % Alternative structure
                 ChatStates = [<<"composing">>, <<"paused">>, <<"active">>,
                               <<"inactive">>, <<"gone">>],
                 lists:member(Name, ChatStates) andalso
