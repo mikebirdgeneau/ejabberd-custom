@@ -382,15 +382,14 @@ is_chat_state_notification(Body, Children) ->
                     end
                 end, Attrs),
 
-                IsChatState andalso HasXmlns;
+                IsChatState or HasXmlns;
             _ ->
                 false
         end
     end, Children),
 
-    % It's a chat state notification if body is empty and has chat state elements
-    IsEmptyBody andalso HasChatState.
-
+    % It's a chat state notification if body is empty or has chat state elements
+    IsEmptyBody or HasChatState.
 
 
 %% Helper function to handle actual message processing
