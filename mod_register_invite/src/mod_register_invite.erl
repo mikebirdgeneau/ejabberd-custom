@@ -3,7 +3,6 @@
 %%%---------------------------------------------------------------------
 -module(mod_register_invite).
 -behaviour(gen_mod).
--behaviour(gen_iq_handler).
 -include_lib("ejabberd/include/logger.hrl").
 -include_lib("xmpp/include/xmpp.hrl").
 
@@ -117,13 +116,13 @@ check_token(_User, _Host, Packet) ->
     end.
 
 extract_token(Packet) ->
-    case xml:get_path_s(Packet, ["iq","query","token"]) of
+    case fxml:get_path_s(Packet, ["iq","query","token"]) of
         <<>> -> extract_token_from_password(Packet);
         T    -> T
     end.
 
 extract_token_from_password(Packet) ->
-    Pass   = xml:get_path_s(Packet, ["iq","query","password"]),
+    Pass   = fxml:get_path_s(Packet, ["iq","query","password"]),
     Prefix = <<"token:">>,
     case binary:match(Pass, Prefix) of
         {0,_} -> binary:part(Pass, byte_size(Prefix), byte_size(Pass)-byte_size(Prefix));
