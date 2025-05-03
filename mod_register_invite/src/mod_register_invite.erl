@@ -360,7 +360,7 @@ on_invite_message(Packet) ->
     Packet.
 
 %% Helper function to handle actual message processing
-handle_message(From, To, <<"chat">>, _Packet) ->
+handle_message(From, To, chat, _Packet) ->
     case To#jid.luser of
         <<"invite">> ->
             Host = To#jid.lserver,
