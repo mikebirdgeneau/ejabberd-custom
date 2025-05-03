@@ -377,7 +377,7 @@ handle_message(From, To, chat, _Packet) ->
             ResponseMessage = #message{
                 from = jid:make(<<"invite">>, Host, <<>>),
                 to = From,
-                type = <<"chat">>,
+                type = chat,
                 body = Body
             },
             ?INFO_MSG("mod_register_invite: Sending Response: ~p", [ResponseMessage]),
