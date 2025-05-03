@@ -405,12 +405,13 @@ has_chatstate_xmlns(Attrs) ->
 
 
 %% Helper function to handle actual message processing
-handle_message(From, To, chat, _Packet) ->
+handle_message(From, To, chat, Packet) ->
     case To#jid.luser of
         <<"invite">> ->
             Host = To#jid.lserver,
             ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
                      [Host, From#jid.luser, From#jid.lserver]),
+            ?INFO_MSG("mod_register_invite: Message ~p",[Packet]),
 
             Token = new_token(Host,
                 get_opt(Host, token_lifetime),
