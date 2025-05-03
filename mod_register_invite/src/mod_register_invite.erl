@@ -423,7 +423,7 @@ is_chat_state_notification(Body, Children) ->
                 ChatStates = [<<"composing">>, <<"paused">>, <<"active">>,
                               <<"inactive">>, <<"gone">>],
                 IsChatState = lists:member(Name, ChatStates),
-                NS = xml:get_attr_s(<<"xmlns">>, Attrs),
+                NS = fxml:get_attr_s(<<"xmlns">>, Attrs),
                 IsStateNS = NS =:= <<"http://jabber.org/protocol/chatstates">>,
                 IsChatState andalso IsStateNS;
             _ ->
