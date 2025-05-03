@@ -334,16 +334,20 @@ on_vcard_get(_Other, State) ->
 on_invite_message(Packet) ->
     try
         case Packet of
-            {{message, _ID, Type, _Lang, From, To, _}, _Els} when is_tuple(From), is_tuple(To) ->
-                FromJID = jid:make(From#jid.luser, From#jid.lserver, From#jid.lresource),
-                ToJID = jid:make(To#jid.luser, To#jid.lserver, To#jid.lresource),
-                handle_message(FromJID, ToJID, Type, Packet);
+            {{message, _ID, Type, _Lang, From, To, _Body, _Els, _Sid, _Children, _Meta}, _Extra}
+                when is_tuple(From), is_tuple(To) ->
+                % Pattern matches the structure we saw in the logs
+                process_message(From, To, Type, Packet);
 
-            {{message, _ID, Type, _Lang, From, To, _, _}, _Els} when is_tuple(From), is_tuple(To) ->
-                % Alternative pattern for message structure with additional element
-                FromJID = jid:make(From#jid.luser, From#jid.lserver, From#jid.lresource),
-                ToJID = jid:make(To#jid.luser, To#jid.lserver, To#jid.lresource),
-                handle_message(FromJID, ToJID, Type, Packet);
+            {{message, _ID, Type, _Lang, From, To, _Body, _Els}, _Extra}
+                when is_tuple(From), is_tuple(To) ->
+                % Alternative structure with fewer elements
+                process_message(From, To, Type, Packet);
+
+            {{message, _ID, Type, _Lang, From, To, _Body, _Els, _Sid}, _Extra}
+                when is_tuple(From), is_tuple(To) ->
+                % Another alternative structure
+                process_message(From, To, Type, Packet);
 
             _ ->
                 ?INFO_MSG("Ignoring unrecognized packet structure: ~p", [Packet])
