@@ -350,7 +350,7 @@ on_invite_message(Packet) ->
                 handle_message(From, To, Type, Packet);
 
             _ ->
-                ?INFO_MSG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
+                ?DEBUG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
         end
     catch
         Error:Reason:Stack ->
@@ -373,7 +373,8 @@ handle_message(From, To, chat, _Packet) ->
             Url = format_token(url, Host, Token),
             ?INFO_MSG("mod_register_invite: Generated URL: ~s", [Url]),
 
-            Body = <<"Your invitation link for registration: ", Url/binary>>,
+            BodyText = <<"Your invitation link for registration: ", Url/binary>>,
+            Body = xmpp:mk_text(BodyText),
             ResponseMessage = #message{
                 from = jid:make(<<"invite">>, Host, <<>>),
                 to = From,
@@ -387,4 +388,4 @@ handle_message(From, To, chat, _Packet) ->
             ?INFO_MSG("mod_register_invite: Ignoring message not sent to invite: ~s", [To#jid.luser])
     end;
 handle_message(_From, _To, _Type, _Packet) ->
-    ?INFO_MSG("mod_register_invite: Ignoring non-chat message type: ~p", [_Type]).
+    ?DEBUG("mod_register_invite: Ignoring non-chat message type: ~p", [_Type]).
