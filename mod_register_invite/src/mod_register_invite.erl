@@ -352,7 +352,6 @@ on_vcard_get(
                       get_opt(Host, token_lifetime),
                       get_opt(Host, default_uses)),
     Url   = format_token(url, Host, Token),
-    QR    = format_token(qr, Host, Token),
 
     %% Build and send vCard reply
     VCardElem = #xmlel{
@@ -435,8 +434,8 @@ is_chat_state_notification(Body, Children) ->
         end
     end, Children),
 
-    IsChatState = IsEmptyBody orelse HasChatState,
-    ?INFO_MSG("mod_register_invite: Is chat state: ~p", [IsChatState]),
+    IsChatState = IsEmptyBody andalso HasChatState,
+    ?INFO_MSG("mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p", [IsChatState, IsEmptyBody, HasChatState]),
     IsChatState.
 
 
