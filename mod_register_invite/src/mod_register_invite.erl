@@ -313,8 +313,11 @@ format_token(url, Host, Token) ->
     iolist_to_binary([Base, "?token=", Token]);
 format_token(raw, _Host, Token) -> Token;
 format_token(qr, Host, Token) ->
-    Png = eqrcode:encode(format_token(url, Host, Token)),
-    <<"data:image/png;base64,", (base64:encode(Png))/binary>>.
+    BaseUrl = proplists:get_value(invite_base_url, mod_options(Host)),
+    Url = <<BaseUrl/binary, "?token=", Token/binary>>,
+    QRCode = qrcode:encode(Url),
+    PngData = qrcode:png(QRCode,[{size, 250}]),
+    <<"data:image/png;base64,", (base64:encode(PngData))/binary>>.
 
 get_opt(Host, Key) ->
     case gen_mod:get_module_opts(Host, ?MODULE) of
@@ -349,6 +352,7 @@ on_vcard_get(
                       get_opt(Host, token_lifetime),
                       get_opt(Host, default_uses)),
     Url   = format_token(url, Host, Token),
+    QR    = format_token(qr, Host, Token),
 
     %% Build and send vCard reply
     VCardElem = #xmlel{
@@ -431,7 +435,9 @@ is_chat_state_notification(Body, Children) ->
         end
     end, Children),
 
-    IsEmptyBody orelse HasChatState.
+    IsChatState = IsEmptyBody orelse HasChatState,
+    ?INFO_MSG("mod_register_invite: Is chat state: ~p", [IsChatState]),
+    IsChatState.
 
 
 %% Helper function to handle actual message processing
