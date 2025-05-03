@@ -334,30 +334,21 @@ on_vcard_get(_Other, State) ->
 on_invite_message(Packet) ->
   try
     case Packet of
-      {{message, _ID, Type, _Lang, From, To, Body, Els, _Sid, _Children, _Meta}, _Extra}
+      {{message, _ID, chat, _Lang, From, To, Body, _Els, _Sid, Children, _Meta}, _Extra}
         when is_tuple(From), is_tuple(To) ->
-        case is_chat_state_notification(Body, Els) of
-          [] -> Packet;
-          _ ->
-            handle_message(From, To, Type, Packet),
-            Packet
-        end;
-      {{message, _ID, Type, _Lang, From, To, Body, Els}, _Extra}
-        when is_tuple(From), is_tuple(To) ->
-        % Alternative structure with fewer elements
-        case is_chat_state_notification(Body, Els) of
-          [] -> Packet;
-          _ ->
-            handle_message(From, To, Type, Packet),
-            Packet
-        end;
-      {{message, _ID, Type, _Lang, From, To, Body, Els, _Sid}, _Extra}
-        when is_tuple(From), is_tuple(To) ->
-        case is_chat_state_notification(Body, Els) of
-          [] -> Packet;
-          _ ->
-            handle_message(From, To, Type, Packet),
-            Packet
+        case is_chat_state_notification(Body, Children) of
+          true ->
+            Packet;
+          false ->
+           case {To#jid.luser, To#jid.lserver} of
+                            {<<"invite">>, Server} ->
+                                ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
+                                         [Server, From#jid.luser, From#jid.lserver]),
+            handle_invite_request(From, Server),
+            Packet;
+             _ ->
+               Packet
+           end
         end;
       _ ->
         ?DEBUG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
@@ -370,62 +361,64 @@ on_invite_message(Packet) ->
   Packet.
 
 %% Helper function to check / filter chat state notifications
-is_chat_state_notification(Body, Els) ->
-    IsEmptyBody = (Body =:= []) orelse (Body =:= undefined),
+is_chat_state_notification(Body, Children) ->
+    % Based on your log, chat state notifications have empty body
+    IsEmptyBody = (Body =:= []),
 
-   HasChatState = lists:any(fun(El) ->
+    % Check if any of the children elements are chat state notifications
+    HasChatState = lists:any(fun(El) ->
         case El of
             {xmlel, Name, Attrs, _} ->
-                % Check if element is a chat state notification
+                % Check for chat state elements
                 ChatStates = [<<"composing">>, <<"paused">>, <<"active">>,
                               <<"inactive">>, <<"gone">>],
-                lists:member(Name, ChatStates) andalso
-                    has_chatstate_xmlns(Attrs);
-            _ -> false
-        end
-    end, Els),
+                IsChatState = lists:member(Name, ChatStates),
 
+                % Check for the xmlns attribute
+                HasXmlns = lists:any(fun(Attr) ->
+                    case Attr of
+                        {"xmlns", "http://jabber.org/protocol/chatstates"} -> true;
+                        _ -> false
+                    end
+                end, Attrs),
+
+                IsChatState andalso HasXmlns;
+            _ ->
+                false
+        end
+    end, Children),
+
+    % It's a chat state notification if body is empty and has chat state elements
     IsEmptyBody andalso HasChatState.
 
-%% Helper to check for the chat states xmlns
-has_chatstate_xmlns(Attrs) ->
-    lists:any(fun(Attr) ->
-        case Attr of
-            {<<"xmlns">>, <<"http://jabber.org/protocol/chatstates">>} -> true;
-            {xmlns, <<"http://jabber.org/protocol/chatstates">>} -> true;
-            _ -> false
-        end
-    end, Attrs).
 
 
 %% Helper function to handle actual message processing
-handle_message(From, To, chat, Packet) ->
-    case To#jid.luser of
-        <<"invite">> ->
-            Host = To#jid.lserver,
-            ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
-                     [Host, From#jid.luser, From#jid.lserver]),
-            ?INFO_MSG("mod_register_invite: Message ~p",[Packet]),
+handle_invite_request(From, Server) ->
+    ?INFO_MSG("mod_register_invite: Processing invitation request from ~s@~s",
+             [From#jid.luser, From#jid.lserver]),
 
-            Token = new_token(Host,
-                get_opt(Host, token_lifetime),
-                get_opt(Host, default_uses)),
-            Url = format_token(url, Host, Token),
-            ?INFO_MSG("mod_register_invite: Generated URL: ~s", [Url]),
+    % Generate a registration token
+    Token = new_token(Server,
+        get_opt(Server, token_lifetime),
+        get_opt(Server, default_uses)),
+    Url = format_token(url, Server, Token),
 
-            BodyText = <<"Your invitation link for registration: ", Url/binary>>,
-            Body = xmpp:mk_text(BodyText),
-            ResponseMessage = #message{
-                from = jid:make(<<"invite">>, Host, <<>>),
-                to = From,
-                type = chat,
-                body = Body
-            },
-            ?INFO_MSG("mod_register_invite: Sending Response: ~p", [ResponseMessage]),
-            ejabberd_router:route(ResponseMessage),
-            ?INFO_MSG("mod_register_invite: Response sent to ~p.",[From]);
-        _ ->
-            ?INFO_MSG("mod_register_invite: Ignoring message not sent to invite: ~s", [To#jid.luser])
-    end;
-handle_message(_From, _To, _Type, _Packet) ->
-    ?DEBUG("mod_register_invite: Ignoring non-chat message type: ~p", [_Type]).
+    % Create a proper JID for the response
+    FromJID = jid:make(<<"invite">>, Server, <<>>),
+
+    % Create the response message with properly formatted body
+    BodyText = <<"Your invitation link for registration: ", Url/binary, "\nPlease share securely with the person you wish to invite.">>,
+
+    % Create a message with properly structured body element
+    Message = #message{
+        id = p1_rand:get_string(),
+        type = chat,
+        from = FromJID,
+        to = From,
+        body = xmpp:mk_text(BodyText),
+        lang = <<"en">>
+    },
+
+    % Send the message
+    ejabberd_router:route(Message).
