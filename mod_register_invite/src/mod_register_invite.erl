@@ -382,7 +382,7 @@ handle_message(From, To, <<"chat">>, _Packet) ->
             },
             ejabberd_router:route(ResponseMessage);
         _ ->
-            ?DEBUG("Ignoring message not sent to invite: ~s", [To#jid.luser])
+            ?INFO_MSG("Ignoring message not sent to invite: ~s", [To#jid.luser])
     end;
 handle_message(_From, _To, _Type, _Packet) ->
     ?DEBUG("Ignoring non-chat message type: ~p", [_Type]).
