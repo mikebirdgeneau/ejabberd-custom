@@ -67,7 +67,7 @@ start(Host, Opts) ->
   Result = ejabberd_hooks:add(user_send_packet, Host, ?MODULE, on_invite_message, 10),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
   %% Debugging Feedback.
-  ?INFO_MSG("Hook loaded: ~p",[Result]),
+  ?INFO_MSG("mod_register_invite: Hook loaded: ~p",[Result]),
   ok.
 
 %% Helper function to create the table
@@ -152,23 +152,23 @@ validate_and_decrement(Token) ->
         case mnesia:read(invite_token, Token, write) of
             [#invite_token{expiry = Exp, uses_left = Uses} = Rec] ->
                 Now = erlang:system_time(second),
-                ?INFO_MSG("Validating token=~s now=~p expiry=~p uses_left=~p", [Token, Now, Exp, Uses]),
+                ?INFO_MSG("mod_register_invite: Validating token=~s now=~p expiry=~p uses_left=~p", [Token, Now, Exp, Uses]),
                 if Exp > Now ->
                        case Uses of
                            0 -> exhausted;
                            _ -> mnesia:write(Rec#invite_token{uses_left = Uses - 1}),
-                                ?INFO_MSG("Token=~s used, new uses_left=~p",[Token,Uses-1]),
+                                ?INFO_MSG("mod_register_invite: Token=~s used, new uses_left=~p",[Token,Uses-1]),
                                 ok
                        end;
                    true -> expired
                 end;
-            [] -> ?WARNING_MSG("Token=~s not found in Mnesia", [Token]), 
+            [] -> ?WARNING_MSG("mod_register_invite: Token=~s not found in Mnesia", [Token]),
                   invalid
 
         end
     end,
     {atomic, Res} = mnesia:transaction(Fun),
-    ?INFO_MSG("Validation result for token=~s -> ~p", [Token, Res]),
+    ?INFO_MSG("mod_register_invite: Validation result for token=~s -> ~p", [Token, Res]),
     Res.
 
 
@@ -176,7 +176,7 @@ validate_and_decrement(Token) ->
 %%    [{<<"vCard">>, <<"vcard-temp">>, handle_iq}].
 
 handle_iq(#iq{type = get, to = #jid{luser= <<"invite">>}} = IQ, _From) ->
-  ?INFO_MSG("Handing vCard request: ~p", [IQ]),
+  ?INFO_MSG("mod_register_invite: Handing vCard request: ~p", [IQ]),
 
   To = xmpp:get_to(IQ),
   Host = To#jid.server,
@@ -184,7 +184,7 @@ handle_iq(#iq{type = get, to = #jid{luser= <<"invite">>}} = IQ, _From) ->
     get_opt(Host, token_lifetime),
     get_opt(Host, default_uses)),
   Url   = format_token(url, Host, Token),
-  ?INFO_MSG("Generated token for vCard: ~s",[Token]),
+  ?INFO_MSG("mod_register_invite: Generated token for vCard: ~s",[Token]),
 
   VCard = #vcard_temp{
     fn = <<"Invitation Service">>,
@@ -195,7 +195,7 @@ handle_iq(#iq{type = get, to = #jid{luser= <<"invite">>}} = IQ, _From) ->
   xmpp:make_iq_result(IQ, VCard);
 
 handle_iq(IQ, _From) ->
-    ?INFO_MSG("Rejecting unhandled IQ: ~p", [IQ]),
+    ?INFO_MSG("mod_register_invite: Rejecting unhandled IQ: ~p", [IQ]),
     xmpp:make_error(IQ, xmpp:err_service_unavailable()).
 
 
@@ -223,7 +223,7 @@ adhoc_local_commands(
 ) ->
     Uses  = proplists:get_value(default_uses, mod_options(Host)),
     Life  = proplists:get_value(token_lifetime, mod_options(Host)),
-    ?INFO_MSG("Generating invite for host=~p users=~p lifetime=~p", [Host, Uses, Life]),
+    ?INFO_MSG("mod_register_invite: Generating invite for host=~p users=~p lifetime=~p", [Host, Uses, Life]),
     Url   = generate_invite_url(Host, Uses, Life),
     %% update & return command record
     Request#adhoc_command{
@@ -255,8 +255,8 @@ new_token(Host, Lifetime, Uses) ->
     Rec      = #invite_token{token = Tok, host = Host, expiry = Exp, uses_left = Uses},
     {atomic, WriteResult} = 
       mnesia:transaction(fun() -> mnesia:write(Rec) end),
-    ?INFO_MSG("Mnesia write for token~s -> ~p", [Tok, WriteResult]),
-    ?INFO_MSG("New invite token=~s expires=~p uses_left=~p", [Tok, Exp, Uses]),
+    ?INFO_MSG("mod_register_invite: Mnesia write for token~s -> ~p", [Tok, WriteResult]),
+    ?INFO_MSG("mod_register_invite: New invite token=~s expires=~p uses_left=~p", [Tok, Exp, Uses]),
     Tok.
 
 format_token(url, Host, Token) ->
@@ -350,11 +350,11 @@ on_invite_message(Packet) ->
                 handle_message(From, To, Type, Packet);
 
             _ ->
-                ?INFO_MSG("Ignoring unrecognized packet structure: ~p", [Packet])
+                ?INFO_MSG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
         end
     catch
         Error:Reason:Stack ->
-            ?ERROR_MSG("Error processing packet in mod_register_invite: ~p:~p~n~p~nPacket: ~p",
+            ?ERROR_MSG("mod_register_invite: Error processing packet in mod_register_invite: ~p:~p~n~p~nPacket: ~p",
                       [Error, Reason, Stack, Packet])
     end,
     Packet.
@@ -364,14 +364,14 @@ handle_message(From, To, <<"chat">>, _Packet) ->
     case To#jid.luser of
         <<"invite">> ->
             Host = To#jid.lserver,
-            ?INFO_MSG("Processing chat message to invite@~s from ~s@~s",
+            ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
                      [Host, From#jid.luser, From#jid.lserver]),
 
             Token = new_token(Host,
                 get_opt(Host, token_lifetime),
                 get_opt(Host, default_uses)),
             Url = format_token(url, Host, Token),
-            ?INFO_MSG("Generated URL: ~s", [Url]),
+            ?INFO_MSG("mod_register_invite: Generated URL: ~s", [Url]),
 
             Body = <<"Your invitation link for registration: ", Url/binary>>,
             ResponseMessage = #message{
@@ -382,7 +382,7 @@ handle_message(From, To, <<"chat">>, _Packet) ->
             },
             ejabberd_router:route(ResponseMessage);
         _ ->
-            ?INFO_MSG("Ignoring message not sent to invite: ~s", [To#jid.luser])
+            ?INFO_MSG("mod_register_invite: Ignoring message not sent to invite: ~s", [To#jid.luser])
     end;
 handle_message(_From, _To, _Type, _Packet) ->
-    ?DEBUG("Ignoring non-chat message type: ~p", [_Type]).
+    ?INFO_MSG("mod_register_invite: Ignoring non-chat message type: ~p", [_Type]).
