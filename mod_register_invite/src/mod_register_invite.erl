@@ -332,32 +332,42 @@ on_vcard_get(_Other, State) ->
 %%--------------------------------------------------------------------
 
 on_invite_message(Packet) ->
-    try
-        case Packet of
-            {{message, _ID, Type, _Lang, From, To, _Body, _Els, _Sid, _Children, _Meta}, _Extra}
-                when is_tuple(From), is_tuple(To) ->
-                % Pattern matches the structure we saw in the logs
-                handle_message(From, To, Type, Packet);
-
-            {{message, _ID, Type, _Lang, From, To, _Body, _Els}, _Extra}
-                when is_tuple(From), is_tuple(To) ->
-                % Alternative structure with fewer elements
-                handle_message(From, To, Type, Packet);
-
-            {{message, _ID, Type, _Lang, From, To, _Body, _Els, _Sid}, _Extra}
-                when is_tuple(From), is_tuple(To) ->
-                % Another alternative structure
-                handle_message(From, To, Type, Packet);
-
-            _ ->
-                ?DEBUG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
-        end
-    catch
-        Error:Reason:Stack ->
-            ?ERROR_MSG("mod_register_invite: Error processing packet in mod_register_invite: ~p:~p~n~p~nPacket: ~p",
-                      [Error, Reason, Stack, Packet])
-    end,
-    Packet.
+  try
+    case Packet of
+      {{message, _ID, Type, _Lang, From, To, Body, _Els, _Sid, _Children, _Meta}, _Extra}
+        when is_tuple(From), is_tuple(To) ->
+        case Body of
+          [] -> Packet;
+          _ ->
+            handle_message(From, To, Type, Packet),
+            Packet
+        end;
+      {{message, _ID, Type, _Lang, From, To, Body, _Els}, _Extra}
+        when is_tuple(From), is_tuple(To) ->
+        % Alternative structure with fewer elements
+        case Body of
+          [] -> Packet;
+          _ ->
+            handle_message(From, To, Type, Packet),
+            Packet
+        end;
+      {{message, _ID, Type, _Lang, From, To, Body, _Els, _Sid}, _Extra}
+        when is_tuple(From), is_tuple(To) ->
+        case Body of
+          [] -> Packet;
+          _ ->
+            handle_message(From, To, Type, Packet),
+            Packet
+        end;
+      _ ->
+        ?DEBUG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
+    end
+  catch
+    Error:Reason:Stack ->
+      ?ERROR_MSG("mod_register_invite: Error processing packet in mod_register_invite: ~p:~p~n~p~nPacket: ~p",
+        [Error, Reason, Stack, Packet])
+  end,
+  Packet.
 
 %% Helper function to handle actual message processing
 handle_message(From, To, chat, _Packet) ->

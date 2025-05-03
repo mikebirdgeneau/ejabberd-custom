@@ -199,8 +199,8 @@ form_new_get2(Token, Host, Lang, CaptchaEls) ->
                 {<<"style">>, <<"text-align:center;">>}],
                ?T("Register an XMPP account")),
          ?XCT(<<"p">>,
-              ?T("This page allows to register an XMPP "
-                 "account in this XMPP server. Your "
+              ?T("This page allows you to register an XMPP "
+                 "account on this XMPP server. Your "
                  "JID (Jabber ID) will be of the "
                  "form: username@server. Please read carefully "
                  "the instructions to fill correctly the "
@@ -231,20 +231,19 @@ form_new_get2(Token, Host, Lang, CaptchaEls) ->
                           ?BR,
                           ?XE(<<"ul">>,
                               [?XCT(<<"li">>,
-                                    ?T("Don't tell your password to anybody, "
-                                       "not even the administrators of the XMPP "
-                                       "server.")),
+                                    ?T("Don't share your password with anybody, "
+                                       "This includes server administrators.")),
                                ?XCT(<<"li">>,
-                                    ?T("You can later change your password using "
+                                    ?T("You can change your password later using "
                                        "an XMPP client.")),
                                ?XCT(<<"li">>,
                                     ?T("Some XMPP clients can store your password "
                                        "in the computer, but you should do this only "
                                        "in your personal computer for safety reasons.")),
                                ?XCT(<<"li">>,
-                                    ?T("Memorize your password, or write it "
-                                       "in a paper placed in a safe place. In "
-                                       "XMPP there isn't an automated way "
+                                    ?T("Memorize your password, use a password "
+                                       "manager, or write it on paper in a safe place. "
+                                       "In XMPP there isn't an automated way "
                                        "to recover your password if you forget "
                                        "it."))])]),
                      ?XE(<<"li">>,
