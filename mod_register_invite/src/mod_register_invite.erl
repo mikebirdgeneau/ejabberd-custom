@@ -334,26 +334,26 @@ on_vcard_get(_Other, State) ->
 on_invite_message(Packet) ->
   try
     case Packet of
-      {{message, _ID, Type, _Lang, From, To, Body, _Els, _Sid, _Children, _Meta}, _Extra}
+      {{message, _ID, Type, _Lang, From, To, Body, Els, _Sid, _Children, _Meta}, _Extra}
         when is_tuple(From), is_tuple(To) ->
-        case Body of
+        case is_chat_state_notification(Body, Els) of
           [] -> Packet;
           _ ->
             handle_message(From, To, Type, Packet),
             Packet
         end;
-      {{message, _ID, Type, _Lang, From, To, Body, _Els}, _Extra}
+      {{message, _ID, Type, _Lang, From, To, Body, Els}, _Extra}
         when is_tuple(From), is_tuple(To) ->
         % Alternative structure with fewer elements
-        case Body of
+        case is_chat_state_notification(Body, Els) of
           [] -> Packet;
           _ ->
             handle_message(From, To, Type, Packet),
             Packet
         end;
-      {{message, _ID, Type, _Lang, From, To, Body, _Els, _Sid}, _Extra}
+      {{message, _ID, Type, _Lang, From, To, Body, Els, _Sid}, _Extra}
         when is_tuple(From), is_tuple(To) ->
-        case Body of
+        case is_chat_state_notification(Body, Els) of
           [] -> Packet;
           _ ->
             handle_message(From, To, Type, Packet),
@@ -368,6 +368,41 @@ on_invite_message(Packet) ->
         [Error, Reason, Stack, Packet])
   end,
   Packet.
+
+%% Helper function to check / filter chat state notifications
+is_chat_state_notification(Body, Els) ->
+    IsEmptyBody = (Body =:= []) orelse (Body =:= undefined),
+
+    HasChatState = lists:any(fun(El) ->
+        case El of
+            {xmlel, Name, Attrs, _} ->
+                % Check if element is a chat state notification
+                ChatStates = [<<"composing">>, <<"paused">>, <<"active">>,
+                              <<"inactive">>, <<"gone">>],
+                lists:member(Name, ChatStates) andalso
+                    has_chatstate_xmlns(Attrs);
+            #xmlel{name = Name, attrs = Attrs} ->
+                % Alternative structure
+                ChatStates = [<<"composing">>, <<"paused">>, <<"active">>,
+                              <<"inactive">>, <<"gone">>],
+                lists:member(Name, ChatStates) andalso
+                    has_chatstate_xmlns(Attrs);
+            _ -> false
+        end
+    end, Els),
+
+    IsEmptyBody andalso HasChatState.
+
+%% Helper to check for the chat states xmlns
+has_chatstate_xmlns(Attrs) ->
+    lists:any(fun(Attr) ->
+        case Attr of
+            {<<"xmlns">>, <<"http://jabber.org/protocol/chatstates">>} -> true;
+            {xmlns, <<"http://jabber.org/protocol/chatstates">>} -> true;
+            _ -> false
+        end
+    end, Attrs).
+
 
 %% Helper function to handle actual message processing
 handle_message(From, To, chat, _Packet) ->
