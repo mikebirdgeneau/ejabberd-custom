@@ -25,7 +25,8 @@
     on_invite_message/1,
     validate_and_decrement/1,
     peek_token/1,
-    handle_iq/2
+    handle_iq/2,
+    cleanup_expired_tokens/1
 ]).
 
 
@@ -67,6 +68,11 @@ start(Host, Opts) ->
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
   %% Debugging Feedback.
   ?INFO_MSG("mod_register_invite: Hook loaded: ~p",[Result]),
+
+  %% Clean-up old tokens:
+  MaxTokenAge = 30 * 86400,   %% 30 days in seconds
+  cleanup_expired_tokens(MaxTokenAge),
+
   ok.
 
 %% Helper function to create the table
@@ -104,6 +110,50 @@ mod_opt_type(_)               -> [token_lifetime, default_uses, invite_base_url]
 
 mod_doc() ->
     "Invite-only registration with expiring tokens".
+
+%%%===================================================================
+%%% Token Cleanup
+%%%===================================================================
+
+cleanup_expired_tokens(MaxAgeSeconds) ->
+    ?INFO_MSG("Starting cleanup of expired tokens", []),
+    Now = erlang:system_time(second),
+    MaxAge = Now - MaxAgeSeconds,
+
+    F = fun() ->
+        %% Find tokens that are expired or have no uses left
+        Tokens = mnesia:select(
+            invite_token,
+            [{#invite_token{token = '$1', host = '$2', expiry = '$3', uses_left = '$4'},
+              [{'or',
+                {'=<', '$3', Now},     %% Expired tokens
+                {'=<', '$4', 0}        %% Exhausted tokens
+              },
+              {'=<', '$3', MaxAge}     %% Older than MaxAge
+              ],
+              ['$1']}],
+            read
+        ),
+
+        %% Delete each token
+        lists:foreach(
+            fun(Token) ->
+                mnesia:delete({invite_token, Token})
+            end,
+            Tokens
+        ),
+        length(Tokens)
+    end,
+
+    case mnesia:transaction(F) of
+        {atomic, Count} ->
+            ?INFO_MSG("mod_register_invite: Cleaned up ~p expired or exhausted tokens", [Count]),
+            {ok, Count};
+        {aborted, Reason} ->
+            ?ERROR_MSG("mod_register_invite: Failed to clean up expired tokens: ~p", [Reason]),
+            {error, Reason}
+    end.
+
 
 %%%===================================================================
 %%% Registration Hook
