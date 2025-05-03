@@ -380,7 +380,9 @@ handle_message(From, To, chat, _Packet) ->
                 type = <<"chat">>,
                 body = Body
             },
-            ejabberd_router:route(ResponseMessage);
+            ?INFO_MSG("mod_register_invite: Sending Response: ~p", [ResponseMessage]),
+            ejabberd_router:route(ResponseMessage),
+            ?INFO_MSG("mod_register_invite: Response sent to ~p.",[From]);
         _ ->
             ?INFO_MSG("mod_register_invite: Ignoring message not sent to invite: ~s", [To#jid.luser])
     end;
