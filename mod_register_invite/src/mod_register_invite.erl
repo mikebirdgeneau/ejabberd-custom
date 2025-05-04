@@ -386,12 +386,10 @@ on_vcard_get(_Other, State) ->
 on_invite_message(Packet) ->
   try
     case Packet of
-      {{message, _ID, chat, _Lang, From, To, Body, _Els, _Sid, Children, _Meta}, _Extra}
+      {{message, _ID, Type, _Lang, From, To, Body, _Els, _Sid, Children, _Meta}, _Extra}
         when is_tuple(From), is_tuple(To) ->
-        case is_chat_state_notification(Body, Children) of
+        case is_valid_chat_message(Type, Body) of
           true ->
-            Packet;
-          false ->
             case {To#jid.luser, To#jid.lserver} of
               {<<"invite">>, Server} ->
                 ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
@@ -401,7 +399,10 @@ on_invite_message(Packet) ->
                 Packet;
               _ ->
                 Packet
-            end
+            end;
+          false ->
+            ?INFO_MSG("Packet is not valid chat message: ~p", [Packet]),
+            Packet
         end;
       _ ->
         ?DEBUG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
@@ -412,6 +413,21 @@ on_invite_message(Packet) ->
         [Error, Reason, Stack, Packet])
   end,
   Packet.
+
+%% Helper function ot determine chat messages with body content:
+is_valid_chat_message(Type, Body) ->
+    ValidType = (Type =:= chat) orelse (Type =:= normal),
+    HasBody = case Body of
+                  [#text{data = Content}] when Content =/= <<>> ->
+                      true;
+                  [#text{data = Content} | _] when Content =/= <<>> ->
+                      true;
+                  _ ->
+                      false
+              end,
+
+    ValidType andalso HasBody.
+
 
 %% Helper function to check / filter chat state notifications
 is_chat_state_notification(Body, Children) ->
@@ -427,7 +443,7 @@ is_chat_state_notification(Body, Children) ->
                               <<"inactive">>, <<"gone">>],
                 IsChatState = lists:member(Name, ChatStates),
                 NS = fxml:get_attr_s(<<"xmlns">>, Attrs),
-                IsStateNS = NS =:= <<"http://jabber.org/protocol/chatstates">>,
+                IsStateNS = NS =:= <<"https://jabber.org/protocol/chatstates">>,
                 IsChatState andalso IsStateNS;
             _ ->
                 false
