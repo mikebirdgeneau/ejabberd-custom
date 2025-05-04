@@ -383,6 +383,12 @@ on_vcard_get(_Other, State) ->
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
 
+get_vhosts() ->
+    case application:get_env(ejabberd, hosts) of
+        {ok, Hosts} -> Hosts;
+        undefined -> []
+    end.
+
 is_body_empty_or_whitespace(undefined) -> true;
 is_body_empty_or_whitespace(<<>>) -> true;
 is_body_empty_or_whitespace(Text) when is_binary(Text) ->
@@ -397,7 +403,7 @@ on_invite_message(Msg) ->
       From = xmpp:get_from(Msg),
       Server = To#jid.lserver,
       FromServer = From#jid.lserver,
-      LocalHosts = ejabberd_config:get_global_option(hosts),
+      LocalHosts = get_vhosts(),
       IsLocalHost = lists:member(FromServer, LocalHosts),
 
       ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To, From, IsLocalHost]),
