@@ -453,7 +453,7 @@ is_chat_state_notification(Body, Children) ->
         end
     end, Children),
 
-    IsChatState = IsEmptyBody andalso HasChatState,
+    IsChatState = IsEmptyBody orelse HasChatState,
     ?INFO_MSG("mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p", [IsChatState, IsEmptyBody, HasChatState]),
     IsChatState.
 
