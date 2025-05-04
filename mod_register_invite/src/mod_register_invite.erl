@@ -389,7 +389,8 @@ is_body_empty_or_whitespace(Text) when is_binary(Text) ->
     string:is_empty(string:trim(Text));
 is_body_empty_or_whitespace(_) -> false.
 
-
+on_invite_message(Packet) ->
+  Packet;
 on_invite_message(#message{} = Msg) ->
   Type = xmpp:get_type(Msg),
   To = xmpp:get_to(Msg),
@@ -401,8 +402,9 @@ on_invite_message(#message{} = Msg) ->
 
   ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To, From, IsLocalHost]),
 
-  if
-    IsLocalHost andalso ((Type == chat) orelse (Type == groupchat)) andalso ({To#jid.luser, To#jid.lserver} == {<<"invite">>, Server}) ->
+  case
+    IsLocalHost andalso ((Type == chat) orelse (Type == groupchat)) andalso ({To#jid.luser, To#jid.lserver} == {<<"invite">>, Server}) of
+      true ->
       case Msg#message.body of
         [] ->
           ?INFO_MSG("Body is empty or undefined.", []),
@@ -429,35 +431,10 @@ on_invite_message(#message{} = Msg) ->
                 Msg
               end
           end
-      end
+      end;
+    false -> Msg;
+    _ -> Msg
   end.
-
-
-
-%% Helper function to check / filter chat state notifications
-is_packet_to_ignore(undefined, _Children) ->
-  %% No body element, we should return true.
-  true;
-is_packet_to_ignore(Body, Children) ->
-    IsEmptyBody = is_body_empty_or_whitespace(Children),
-
-    HasChatState =
-        lists:any(fun
-                      (#xmlel{name = Name}) ->
-                          lists:member(Name,
-                                        [<<"active">>, <<"composing">>,
-                                         <<"paused">>, <<"inactive">>,
-                                         <<"gone">>]);
-                      (_) ->
-                          false
-                  end,
-                  Children),
-
-    IsChatState = IsEmptyBody orelse HasChatState,
-    ?INFO_MSG(
-        "mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p",
-        [IsChatState, IsEmptyBody, HasChatState]),
-    IsChatState.
 
 %% Helper function to send an info message:
 handle_info_message(From, Server) ->
