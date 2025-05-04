@@ -116,7 +116,7 @@ mod_doc() ->
 %%%===================================================================
 
 cleanup_expired_tokens(MaxAgeSeconds) ->
-    ?INFO_MSG("Starting cleanup of expired tokens", []),
+    ?INFO_MSG("mod_register_invite: Starting cleanup of expired tokens", []),
     Now = erlang:system_time(second),
     MaxAge = Now - MaxAgeSeconds,
 
@@ -389,8 +389,6 @@ is_body_empty_or_whitespace(Text) when is_binary(Text) ->
     string:is_empty(string:trim(Text));
 is_body_empty_or_whitespace(_) -> false.
 
-on_invite_message(Packet) ->
-  Packet;
 on_invite_message(#message{} = Msg) ->
   Type = xmpp:get_type(Msg),
   To = xmpp:get_to(Msg),
@@ -407,13 +405,13 @@ on_invite_message(#message{} = Msg) ->
       true ->
       case Msg#message.body of
         [] ->
-          ?INFO_MSG("Body is empty or undefined.", []),
+          ?INFO_MSG("mod_register_invite: Body is empty or undefined.", []),
           Msg;
         _ ->
           BodyText = xmpp:get_text(Msg#message.body),
           case is_body_empty_or_whitespace(BodyText) of
             true ->
-              ?INFO_MSG("Body is empty: ~p", [BodyText]),
+              ?INFO_MSG("mod_register_invite: Body is empty: ~p", [BodyText]),
               Msg;
             false ->
               %% Check if BodyText contains 'invite'
@@ -434,7 +432,10 @@ on_invite_message(#message{} = Msg) ->
       end;
     false -> Msg;
     _ -> Msg
-  end.
+  end;
+on_invite_message(Packet) ->
+  %% Catch all for non-matching messages
+  Packet.
 
 %% Helper function to send an info message:
 handle_info_message(From, Server) ->
