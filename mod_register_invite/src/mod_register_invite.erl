@@ -486,4 +486,41 @@ handle_invite_request(From, Server) ->
     },
 
     % Send the message
-    ejabberd_router:route(Message).
+    ejabberd_router:route(Message),
+
+  % Create a QR code:
+  QR = format_token(qr, Server, Token),
+  HtmlFrag =
+    #xmlel{ name = <<"html">>,
+      attrs = [{<<"xmlns">>, <<"http://jabber.org/protocol/xhtml-im">>}],
+      children = [
+        #xmlel{ name = <<"body">>,
+          attrs = [{<<"xmlns">>, <<"http://www.w3.org/1999/xhtml">>}],
+          children = [
+            #xmlel{ name = <<"p">>,
+              children = [{xmlcdata, <<"Scan this QR code to register:">>}]},
+            #xmlel{ name = <<"img">>,
+              attrs = [
+                {<<"src">>, QR},
+                {<<"alt">>, <<"Invitation‑QR">>}
+              ],
+              children = []}
+          ]}
+      ]},
+
+    QRMsg = #message{
+               id      = p1_rand:get_string(),
+               type    = chat,
+               from    = FromJID,
+               to      = From,
+               body    = xmpp:mk_text(
+                           <<"(If you can’t see the image, use the link I just sent).">>),
+               sub_els = [HtmlFrag],
+               lang    = <<"en">>
+             },
+
+    ejabberd_router:route(QRMsg).
+
+
+
+
