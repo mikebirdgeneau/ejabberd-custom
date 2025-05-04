@@ -415,43 +415,33 @@ on_invite_message(Packet) ->
 
 %% Helper function to check / filter chat state notifications
 is_chat_state_notification(Body, Children) ->
-    % Based on your log, chat state notifications have empty body
-    IsEmptyBody = case Body of
-        % Handle the tuple format from the logs: {:text, "", Content}
-        [{text, _, Content}] ->
-            % If Content is empty or only whitespace, body is effectively empty
-            Content == undefined orelse Content == [] orelse Content == <<>>;
+  IsEmptyBody = case Body of
+                  undefined -> true;
+                  [] -> true;
+                  [{text, _, Content}|_] when is_binary(Content), byte_size(Content) > 0 -> false;
+                  _ -> true
+                end,
 
-        % Handle direct empty formats
-        [] -> true;
-        undefined -> true;
-        <<>> -> true;
-
-        % Any other non-empty Body means it's not just a chat state notification
-        _ -> false
-    end,
-
-    % Check if any of the children elements are chat state notifications
-    HasChatState = lists:any(fun(Child) ->
-        case Child of
-            #xmlel{name = Name, attrs = Attrs} ->
-                %% Note, we don't include active here at the moment - since that is sent along with messages.
-                ChatStates = [
-                  <<"composing">>,
-                  <<"paused">>,
-                  <<"inactive">>,
-                  <<"gone">>,
-                  <<"request">>,
-                  <<"markable">>
-                  ],
-                IsChatState = lists:member(Name, ChatStates),
-                NS = fxml:get_attr_s(<<"xmlns">>, Attrs),
-                IsStateNS = NS =:= <<"https://jabber.org/protocol/chatstates">>,
-                IsChatState andalso IsStateNS;
-            _ ->
-                false
-        end
-    end, Children),
+  % Check if any of the children elements are chat state notifications
+  HasChatState = lists:any(fun(Child) ->
+    case Child of
+      #xmlel{name = Name, attrs = Attrs} ->
+        %% Note, we don't include active here at the moment - since that is sent along with messages.
+        ChatStates = [
+          <<"active">>,
+          <<"composing">>,
+          <<"paused">>,
+          <<"inactive">>,
+          <<"gone">>
+        ],
+        IsChatState = lists:member(Name, ChatStates),
+        NS = fxml:get_attr_s(<<"xmlns">>, Attrs),
+        IsStateNS = NS =:= <<"https://jabber.org/protocol/chatstates">>,
+        IsChatState andalso IsStateNS;
+      _ ->
+        false
+    end
+                           end, Children),
 
     IsChatState = IsEmptyBody orelse HasChatState,
     ?INFO_MSG("mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p", [IsChatState, IsEmptyBody, HasChatState]),
