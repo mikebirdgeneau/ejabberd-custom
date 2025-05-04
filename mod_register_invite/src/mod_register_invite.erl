@@ -388,7 +388,7 @@ on_invite_message(Packet) ->
     case Packet of
       {{message, _ID, _Type, _Lang, From, To, Body, _Els, _Sid, Children, _Meta}, _Extra}
         when is_tuple(From), is_tuple(To) ->
-        case is_chat_state_notification(Body, Children) of
+        case is_packet_to_ignore(Body, Children) of
           true ->
             Packet;
           false ->
@@ -413,25 +413,25 @@ on_invite_message(Packet) ->
   end,
   Packet.
 
+
+is_body_empty_or_whitespace(Children) ->
+  BodyElements = [El || El <- Children, fxml:get_tag_name(El) =:= <<"text">>],
+  case BodyElements of
+    [] ->
+      true; % No body elements
+    [BodyEl|_] ->
+      BodyText = fxml:get_cdata(BodyEl),
+      ?INFO_MSG("mod_register_invite: Body text: ~p",[BodyText]),
+      %% Check if it's empty or whitespace-only
+      byte_size(string:trim(BodyText)) =:= 0
+  end.
+
 %% Helper function to check / filter chat state notifications
-is_chat_state_notification(Body, Children) ->
-    IsEmptyBody =
-        case Body of
-            undefined ->
-                true;
-
-            #xmlel{children = BodyChildren} ->
-                lists:all(fun
-                              (#xmlcdata{content = C}) ->
-                                  byte_size(string:trim(C)) =:= 0;
-                              (_) ->
-                                  true
-                          end,
-                          BodyChildren);
-
-            _Other ->
-                true
-        end,
+is_packet_to_ignore(undefined, _Children) ->
+  %% No body element, we should return true.
+  true;
+is_packet_to_ignore(Body, Children) ->
+    IsEmptyBody = is_body_empty_or_whitespace(Children),
 
     HasChatState =
         lists:any(fun
@@ -450,7 +450,6 @@ is_chat_state_notification(Body, Children) ->
         "mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p",
         [IsChatState, IsEmptyBody, HasChatState]),
     IsChatState.
-
 
 %% Helper function to handle actual message processing
 handle_invite_request(From, Server) ->
