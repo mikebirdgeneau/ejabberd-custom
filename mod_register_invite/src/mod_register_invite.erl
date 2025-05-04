@@ -383,48 +383,56 @@ on_vcard_get(_Other, State) ->
 %% On any chat message to invite@… send back a fresh invite link
 %%--------------------------------------------------------------------
 
-on_invite_message(Packet) ->
-  try
-    case Packet of
-      {{message, _ID, _Type, _Lang, From, To, Body, _Els, _Sid, Children, _Meta}, _Extra}
-        when is_tuple(From), is_tuple(To) ->
-        case is_packet_to_ignore(Body, Children) of
-          true ->
-            Packet;
-          false ->
-            case {To#jid.luser, To#jid.lserver} of
-              {<<"invite">>, Server} ->
+is_body_empty_or_whitespace(undefined) -> true;
+is_body_empty_or_whitespace(<<>>) -> true;
+is_body_empty_or_whitespace(Text) when is_binary(Text) ->
+    string:is_empty(string:trim(Text));
+is_body_empty_or_whitespace(_) -> false.
+
+
+on_invite_message(#message{} = Msg) ->
+  Type = xmpp:get_type(Msg),
+  To = xmpp:get_to(Msg),
+  From = xmpp:get_from(Msg),
+  Server = To#jid.lserver,
+  FromServer = From#jid.lserver,
+  LocalHosts = ejabberd_config:get_global_option(hosts),
+  IsLocalHost = lists:member(FromServer, LocalHosts),
+
+  ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To, From, IsLocalHost]),
+
+  if
+    IsLocalHost andalso ((Type == chat) orelse (Type == groupchat)) andalso ({To#jid.luser, To#jid.lserver} == {<<"invite">>, Server}) ->
+      case Msg#message.body of
+        [] ->
+          ?INFO_MSG("Body is empty or undefined.", []),
+          Msg;
+        _ ->
+          BodyText = xmpp:get_text(Msg#message.body),
+          case is_body_empty_or_whitespace(BodyText) of
+            true ->
+              ?INFO_MSG("Body is empty: ~p", [BodyText]),
+              Msg;
+            false ->
+              %% Check if BodyText contains 'invite'
+              LowerBodyText = string:lowercase(BodyText),
+              case string:find(LowerBodyText, "invite") of
+                nomatch ->
+                  ?INFO_MSG("mod_register_invite: message does not contain 'invite': ~p", [BodyText]),
+                  handle_info_message(From, Server),
+                  Msg;
+                _ ->
                 ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
                   [Server, From#jid.luser, From#jid.lserver]),
-                ?INFO_MSG("mod_register_invite: Packet ~p",[Packet]),
+                ?INFO_MSG("mod_register_invite: Packet ~p",[Msg]),
                 handle_invite_request(From, Server),
-                Packet;
-              _ ->
-                Packet
-            end
-        end;
-      _ ->
-        ?DEBUG("mod_register_invite: Ignoring unrecognized packet structure: ~p", [Packet])
-    end
-  catch
-    Error:Reason:Stack ->
-      ?ERROR_MSG("mod_register_invite: Error processing packet in mod_register_invite: ~p:~p~n~p~nPacket: ~p",
-        [Error, Reason, Stack, Packet])
-  end,
-  Packet.
-
-
-is_body_empty_or_whitespace(Children) ->
-  BodyElements = [El || El <- Children, fxml:get_tag_name(El) =:= <<"text">>],
-  case BodyElements of
-    [] ->
-      true; % No body elements
-    [BodyEl|_] ->
-      BodyText = fxml:get_cdata(BodyEl),
-      ?INFO_MSG("mod_register_invite: Body text: ~p",[BodyText]),
-      %% Check if it's empty or whitespace-only
-      byte_size(string:trim(BodyText)) =:= 0
+                Msg
+              end
+          end
+      end
   end.
+
+
 
 %% Helper function to check / filter chat state notifications
 is_packet_to_ignore(undefined, _Children) ->
@@ -450,6 +458,24 @@ is_packet_to_ignore(Body, Children) ->
         "mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p",
         [IsChatState, IsEmptyBody, HasChatState]),
     IsChatState.
+
+%% Helper function to send an info message:
+handle_info_message(From, Server) ->
+  FromJID = jid:make(<<"invite">>, Server, <<>>),
+  % Create the response message with properly formatted body
+  BodyText = <<"Send me a message with the word 'invite' included, and I'll generate an invite URL that can be shared with another person so they can register.">>,
+  % Create a message with properly structured body element
+  Message = #message{
+    id = p1_rand:get_string(),
+    type = chat,
+    from = FromJID,
+    to = From,
+    body = xmpp:mk_text(BodyText),
+    lang = <<"en">>
+  },
+
+  % Send the message
+  ejabberd_router:route(Message).
 
 %% Helper function to handle actual message processing
 handle_invite_request(From, Server) ->
