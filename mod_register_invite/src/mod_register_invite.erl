@@ -437,8 +437,14 @@ is_chat_state_notification(Body, Children) ->
     HasChatState = lists:any(fun(Child) ->
         case Child of
             #xmlel{name = Name, attrs = Attrs} ->
-                ChatStates = [<<"composing">>, <<"paused">>,
-                              <<"inactive">>, <<"gone">>],
+                ChatStates = [
+                  <<"composing">>,
+                  <<"paused">>,
+                  <<"inactive">>,
+                  <<"gone">>,
+                  <<"request">>,
+                  <<"markable">>
+                  ],
                 IsChatState = lists:member(Name, ChatStates),
                 NS = fxml:get_attr_s(<<"xmlns">>, Attrs),
                 IsStateNS = NS =:= <<"https://jabber.org/protocol/chatstates">>,
