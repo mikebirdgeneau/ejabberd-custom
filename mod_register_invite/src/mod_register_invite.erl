@@ -431,12 +431,11 @@ is_chat_state_notification(Body, Children) ->
         _ -> false
     end,
 
-
-
     % Check if any of the children elements are chat state notifications
     HasChatState = lists:any(fun(Child) ->
         case Child of
             #xmlel{name = Name, attrs = Attrs} ->
+                %% Note, we don't include active here at the moment - since that is sent along with messages.
                 ChatStates = [
                   <<"composing">>,
                   <<"paused">>,
