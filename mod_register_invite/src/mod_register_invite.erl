@@ -415,36 +415,40 @@ on_invite_message(Packet) ->
 
 %% Helper function to check / filter chat state notifications
 is_chat_state_notification(Body, Children) ->
-  IsEmptyBody = case Body of
-                  undefined -> true;
-                  [] -> true;
-                  [{text, _, Content}|_] when is_binary(Content), byte_size(Content) > 0 -> false;
-                  _ -> true
-                end,
+    IsEmptyBody =
+        case Body of
+            undefined ->
+                true;
 
-  % Check if any of the children elements are chat state notifications
-  HasChatState = lists:any(fun(Child) ->
-    case Child of
-      #xmlel{name = Name, attrs = Attrs} ->
-        %% Note, we don't include active here at the moment - since that is sent along with messages.
-        ChatStates = [
-          <<"active">>,
-          <<"composing">>,
-          <<"paused">>,
-          <<"inactive">>,
-          <<"gone">>
-        ],
-        IsChatState = lists:member(Name, ChatStates),
-        NS = fxml:get_attr_s(<<"xmlns">>, Attrs),
-        IsStateNS = NS =:= <<"https://jabber.org/protocol/chatstates">>,
-        IsChatState andalso IsStateNS;
-      _ ->
-        false
-    end
-                           end, Children),
+            #xmlel{children = BodyChildren} ->
+                lists:all(fun
+                              (#xmlcdata{content = C}) ->
+                                  byte_size(string:trim(C)) =:= 0;
+                              (_) ->
+                                  true
+                          end,
+                          BodyChildren);
+
+            _Other ->
+                true
+        end,
+
+    HasChatState =
+        lists:any(fun
+                      (#xmlel{name = Name}) ->
+                          lists:member(Name,
+                                        [<<"active">>, <<"composing">>,
+                                         <<"paused">>, <<"inactive">>,
+                                         <<"gone">>]);
+                      (_) ->
+                          false
+                  end,
+                  Children),
 
     IsChatState = IsEmptyBody orelse HasChatState,
-    ?INFO_MSG("mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p", [IsChatState, IsEmptyBody, HasChatState]),
+    ?INFO_MSG(
+        "mod_register_invite: Is chat state: ~p; Empty: ~p, ChatState: ~p",
+        [IsChatState, IsEmptyBody, HasChatState]),
     IsChatState.
 
 
