@@ -64,7 +64,7 @@ start(Host, Opts) ->
   ejabberd_hooks:add(pre_registration,     Host, ?MODULE, check_token,          80),
   ejabberd_hooks:add(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:add(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
-  Result = ejabberd_hooks:add(user_send_packet, Host, ?MODULE, on_invite_message, 10),
+  Result = ejabberd_hooks:add(filter_packet, global, ?MODULE, on_invite_message, 10),
   gen_iq_handler:add_iq_handler(ejabberd_local, Host, ?NS_VCARD, ?MODULE, handle_iq, no_queue),
   %% Debugging Feedback.
   ?INFO_MSG("mod_register_invite: Hook loaded: ~p",[Result]),
@@ -88,7 +88,7 @@ stop(Host) ->
   ejabberd_hooks:delete(adhoc_local_items,    Host, ?MODULE, adhoc_local_items,    50),
   ejabberd_hooks:delete(adhoc_local_commands, Host, ?MODULE, adhoc_local_commands, 50),
   ejabberd_hooks:delete(iq,               Host, ?MODULE, handle_iq,         100),
-  ejabberd_hooks:delete(user_send_packet, Host, ?MODULE, on_invite_message, 10),
+  ejabberd_hooks:delete(filter_packet, global, ?MODULE, on_invite_message, 10),
   gen_iq_handler:remove_iq_handler(ejabberd_local, Host, ?NS_VCARD),
 ok.
 
@@ -389,9 +389,9 @@ is_body_empty_or_whitespace(Text) when is_binary(Text) ->
     string:is_empty(string:trim(Text));
 is_body_empty_or_whitespace(_) -> false.
 
-on_invite_message(Packet) ->
-  case Packet of
-    #message{} = Msg ->
+on_invite_message(drop) ->
+  drop;
+on_invite_message(Msg) ->
       Type = xmpp:get_type(Msg),
       To = xmpp:get_to(Msg),
       From = xmpp:get_from(Msg),
@@ -434,12 +434,7 @@ on_invite_message(Packet) ->
           end;
         false -> Msg;
         _ -> Msg
-      end;
-    _ ->
-      %% Catch all for non-matching messages
-      ?INFO_MSG("mod_register_invite: Skipping packet (no match): ~p", [Packet]),
-      Packet
-  end.
+      end.
 
 
 %% Helper function to send an info message:
