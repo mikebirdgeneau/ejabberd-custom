@@ -404,9 +404,11 @@ on_invite_message(Msg) ->
       Server = To#jid.lserver,
       FromServer = From#jid.lserver,
       LocalHosts = get_vhosts(),
+      ?INFO_MSG("Local Hosts: ~p", [LocalHosts]),
+
       IsLocalHost = lists:member(FromServer, LocalHosts),
 
-      ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To, From, IsLocalHost]),
+      ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To#jid.luser, From#jid.luser, IsLocalHost]),
 
       case
         IsLocalHost andalso ((Type == chat) orelse (Type == groupchat)) andalso ({To#jid.luser, To#jid.lserver} == {<<"invite">>, Server}) of
