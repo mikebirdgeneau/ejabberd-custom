@@ -435,6 +435,7 @@ on_invite_message(#message{} = Msg) ->
   end;
 on_invite_message(Packet) ->
   %% Catch all for non-matching messages
+  ?INFO_MSG("mod_register_invite: Skipping packet (no match): ~P", [Packet]),
   Packet.
 
 %% Helper function to send an info message:
