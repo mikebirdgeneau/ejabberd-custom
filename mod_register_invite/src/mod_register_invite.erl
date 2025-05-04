@@ -416,7 +416,22 @@ on_invite_message(Packet) ->
 %% Helper function to check / filter chat state notifications
 is_chat_state_notification(Body, Children) ->
     % Based on your log, chat state notifications have empty body
-    IsEmptyBody = (Body =:= []) orelse Body =:= undefined,
+    IsEmptyBody = case Body of
+        % Handle the tuple format from the logs: {:text, "", Content}
+        [{text, _, Content}] ->
+            % If Content is empty or only whitespace, body is effectively empty
+            Content == undefined orelse Content == [] orelse Content == <<>>;
+
+        % Handle direct empty formats
+        [] -> true;
+        undefined -> true;
+        <<>> -> true;
+
+        % Any other non-empty Body means it's not just a chat state notification
+        _ -> false
+    end,
+
+
 
     % Check if any of the children elements are chat state notifications
     HasChatState = lists:any(fun(Child) ->
