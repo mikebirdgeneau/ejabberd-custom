@@ -389,54 +389,58 @@ is_body_empty_or_whitespace(Text) when is_binary(Text) ->
     string:is_empty(string:trim(Text));
 is_body_empty_or_whitespace(_) -> false.
 
-on_invite_message(#message{} = Msg) ->
-  Type = xmpp:get_type(Msg),
-  To = xmpp:get_to(Msg),
-  From = xmpp:get_from(Msg),
-  Server = To#jid.lserver,
-  FromServer = From#jid.lserver,
-  LocalHosts = ejabberd_config:get_global_option(hosts),
-  IsLocalHost = lists:member(FromServer, LocalHosts),
-
-  ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To, From, IsLocalHost]),
-
-  case
-    IsLocalHost andalso ((Type == chat) orelse (Type == groupchat)) andalso ({To#jid.luser, To#jid.lserver} == {<<"invite">>, Server}) of
-      true ->
-      case Msg#message.body of
-        [] ->
-          ?INFO_MSG("mod_register_invite: Body is empty or undefined.", []),
-          Msg;
-        _ ->
-          BodyText = xmpp:get_text(Msg#message.body),
-          case is_body_empty_or_whitespace(BodyText) of
-            true ->
-              ?INFO_MSG("mod_register_invite: Body is empty: ~p", [BodyText]),
-              Msg;
-            false ->
-              %% Check if BodyText contains 'invite'
-              LowerBodyText = string:lowercase(BodyText),
-              case string:find(LowerBodyText, "invite") of
-                nomatch ->
-                  ?INFO_MSG("mod_register_invite: message does not contain 'invite': ~p", [BodyText]),
-                  handle_info_message(From, Server),
-                  Msg;
-                _ ->
-                ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
-                  [Server, From#jid.luser, From#jid.lserver]),
-                ?INFO_MSG("mod_register_invite: Packet ~p",[Msg]),
-                handle_invite_request(From, Server),
-                Msg
-              end
-          end
-      end;
-    false -> Msg;
-    _ -> Msg
-  end;
 on_invite_message(Packet) ->
-  %% Catch all for non-matching messages
-  ?INFO_MSG("mod_register_invite: Skipping packet (no match): ~P", [Packet]),
-  Packet.
+  case Packet of
+    #message{} = Msg ->
+      Type = xmpp:get_type(Msg),
+      To = xmpp:get_to(Msg),
+      From = xmpp:get_from(Msg),
+      Server = To#jid.lserver,
+      FromServer = From#jid.lserver,
+      LocalHosts = ejabberd_config:get_global_option(hosts),
+      IsLocalHost = lists:member(FromServer, LocalHosts),
+
+      ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To, From, IsLocalHost]),
+
+      case
+        IsLocalHost andalso ((Type == chat) orelse (Type == groupchat)) andalso ({To#jid.luser, To#jid.lserver} == {<<"invite">>, Server}) of
+        true ->
+          case Msg#message.body of
+            [] ->
+              ?INFO_MSG("mod_register_invite: Body is empty or undefined.", []),
+              Msg;
+            _ ->
+              BodyText = xmpp:get_text(Msg#message.body),
+              case is_body_empty_or_whitespace(BodyText) of
+                true ->
+                  ?INFO_MSG("mod_register_invite: Body is empty: ~p", [BodyText]),
+                  Msg;
+                false ->
+                  %% Check if BodyText contains 'invite'
+                  LowerBodyText = string:lowercase(BodyText),
+                  case string:find(LowerBodyText, "invite") of
+                    nomatch ->
+                      ?INFO_MSG("mod_register_invite: message does not contain 'invite': ~p", [BodyText]),
+                      handle_info_message(From, Server),
+                      Msg;
+                    _ ->
+                      ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
+                        [Server, From#jid.luser, From#jid.lserver]),
+                      ?INFO_MSG("mod_register_invite: Packet ~p",[Msg]),
+                      handle_invite_request(From, Server),
+                      Msg
+                  end
+              end
+          end;
+        false -> Msg;
+        _ -> Msg
+      end;
+    _ ->
+      %% Catch all for non-matching messages
+      ?INFO_MSG("mod_register_invite: Skipping packet (no match): ~p", [Packet]),
+      Packet
+  end.
+
 
 %% Helper function to send an info message:
 handle_info_message(From, Server) ->
