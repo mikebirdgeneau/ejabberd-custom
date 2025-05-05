@@ -399,37 +399,37 @@ on_invite_message(Msg) ->
       Server = To#jid.lserver,
       FromServer = From#jid.lserver,
       LocalHosts = ejabberd_config:get_myhosts(),
-      ?INFO_MSG("Local Hosts: ~p", [LocalHosts]),
+      ?DEBUG("Local Hosts: ~p", [LocalHosts]),
 
       IsLocalHost = lists:member(FromServer, LocalHosts),
 
-      ?INFO_MSG("mod_register_invite: to ~p, from ~p, local ~p",[To#jid.luser, From#jid.luser, IsLocalHost]),
+      ?DEBUG("mod_register_invite: to ~p, from ~p, local ~p",[To#jid.luser, From#jid.luser, IsLocalHost]),
 
       case
         IsLocalHost andalso ((Type == chat) orelse (Type == groupchat)) andalso ({To#jid.luser, To#jid.lserver} == {<<"invite">>, Server}) of
         true ->
           case Msg#message.body of
             [] ->
-              ?INFO_MSG("mod_register_invite: Body is empty or undefined.", []),
+              ?DEBUG("mod_register_invite: Body is empty or undefined.", []),
               Msg;
             _ ->
               BodyText = xmpp:get_text(Msg#message.body),
               case is_body_empty_or_whitespace(BodyText) of
                 true ->
-                  ?INFO_MSG("mod_register_invite: Body is empty: ~p", [BodyText]),
+                  ?DEBUG("mod_register_invite: Body is empty: ~p", [BodyText]),
                   Msg;
                 false ->
                   %% Check if BodyText contains 'invite'
                   LowerBodyText = string:lowercase(BodyText),
                   case string:find(LowerBodyText, "invite") of
                     nomatch ->
-                      ?INFO_MSG("mod_register_invite: message does not contain 'invite': ~p", [BodyText]),
+                      ?DEBUG("mod_register_invite: message does not contain 'invite': ~p", [BodyText]),
                       handle_info_message(From, Server),
                       Msg;
                     _ ->
-                      ?INFO_MSG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
+                      ?DEBUG("mod_register_invite: Processing chat message to invite@~s from ~s@~s",
                         [Server, From#jid.luser, From#jid.lserver]),
-                      ?INFO_MSG("mod_register_invite: Packet ~p",[Msg]),
+                      ?DEBUG("mod_register_invite: Packet ~p",[Msg]),
                       handle_invite_request(From, Server),
                       Msg
                   end
