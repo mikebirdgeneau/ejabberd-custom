@@ -99,7 +99,7 @@ depends(_Host, _Opts) ->
 mod_options(Host) ->
     DefaultBase = <<"https://", Host/binary, "/register/new">>,
     [{token_lifetime, 86400},    %% seconds
-     {default_uses,  1},
+     {default_uses,  5},
      {invite_base_url, DefaultBase}
     ].
 
